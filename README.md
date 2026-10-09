@@ -6,20 +6,26 @@ An industry-standard, role-based academic web application built using **Python**
 
 ## 🚀 Key Features & Architectural Highlights
 
-- **Role-Based Authentication**:
-  - Custom `User` model (`accounts.User`) with distinct roles (`ADMIN`, `TEACHER`).
-  - Modular architecture with clean separation of concerns.
-- **Academic Hierarchy Ready**:
-  - Configured for Classes/Divisions, Subjects, and Teacher assignments.
+- **Role & Permission Management**:
+  - Custom `User` model ([`accounts.User`](file:///c:/Users/pratap%20solat/OneDrive/Online%20Attendance%20Tracking%20System/accounts/models.py)) integrated with Django Groups (`Administrator`, `Teacher`) and Django Permissions (`can_mark_attendance`, `can_view_reports`, `can_export_attendance`).
+  - Automated role-group synchronization upon user save and post-migration signals.
+- **Academic Hierarchy**:
+  - `AcademicYear` with automated single-active-year enforcement.
+  - `Classroom` (Class & Section) with unique constraint `(name, section, academic_year)`.
+  - `Subject` catalog with unique indexing on `code`.
+  - `ClassSubjectAssignment` mapping classes and subjects to teachers with conflict prevention.
+- **Student Information**:
+  - `Student` model with unique `student_id`, personal data, guardian contact, class assignment, and per-class unique `roll_number`.
+- **Attendance Architecture**:
+  - `AttendanceSession` aggregating class, subject, date, teacher, and notes.
+  - `Attendance` records with statuses: `Present`, `Absent`, `Late`, `Excused`.
+  - Database constraint preventing duplicate records per student, class, subject, and date.
+  - Model-level validation enforcing that students belong to the selected classroom.
+  - ACID-compliant transactional bulk recording via `@transaction.atomic`.
+- **Comprehensive Django Admin**:
+  - Registered with search fields, list filters, inline allocations, read-only timestamps, and autocomplete widgets.
 - **Responsive Dashboard**:
-  - Polished modern UI with custom CSS variables, Bootstrap 5, and Bootstrap Icons.
-  - Role-tailored dashboards for Administrators and Teachers.
-- **Secure Configuration**:
-  - Decoupled environment settings (`.env` with `python-dotenv`).
-  - Django security features enabled (CSRF, X-Frame-Options, Password validation).
-- **Fast Local Development**:
-  - SQLite database out-of-the-box.
-  - Dedicated development user generation script.
+  - Live metric computation from ORM models for Administrators and Teachers.
 
 ---
 
@@ -29,7 +35,7 @@ An industry-standard, role-based academic web application built using **Python**
 |---|---|
 | **Backend** | Python 3.13, Django 5.1 |
 | **Database** | SQLite3 |
-| **Authentication** | Django Auth + Custom `AbstractUser` |
+| **Authentication & Roles** | Django Auth + Custom `AbstractUser` + Django Groups & Permissions |
 | **Frontend** | Django Templates, Bootstrap 5.3, Bootstrap Icons |
 | **Forms & Styling** | Django Crispy Forms (Bootstrap 5 pack), Custom CSS |
 | **Client-side Interactivity** | Vanilla JavaScript |
@@ -46,53 +52,58 @@ Online Attendance Tracking System/
 ├── manage.py                         # Django administrative runner
 ├── requirements.txt                  # Python dependencies
 ├── README.md                         # Documentation & runbook
+├── db.sqlite3                        # Initialized SQLite database
 │
 ├── config/                           # Project configuration
-│   ├── __init__.py
-│   ├── asgi.py
 │   ├── settings.py                   # Central settings (env-aware)
 │   ├── urls.py                       # Root URL dispatcher
-│   └── wsgi.py
+│   ├── asgi.py                       # ASGI entrypoint
+│   └── wsgi.py                       # WSGI entrypoint
 │
-├── accounts/                         # Authentication & user roles
+├── accounts/                         # User authentication, roles & permissions
 │   ├── management/commands/
-│   │   └── create_dev_users.py       # Seeds default dev accounts
-│   ├── admin.py                      # Custom UserAdmin
+│   │   ├── create_dev_users.py       # Seeds default dev accounts with groups
+│   │   └── seed_sample_data.py       # Seeds complete academic & student dataset
+│   ├── admin.py                      # Custom UserAdmin & TeacherProfileAdmin
 │   ├── forms.py                      # Login & profile forms
 │   ├── models.py                     # Custom User & TeacherProfile
+│   ├── signals.py                    # Group synchronization & role permissions
 │   ├── tests.py                      # Authentication & role unit tests
 │   ├── urls.py                       # /accounts/ routes
 │   └── views.py                      # Login, logout, profile handlers
 │
 ├── academics/                        # Classes, divisions, and subjects
-│   ├── admin.py
+│   ├── admin.py                      # AcademicYear, Classroom, Subject, Assignment admin
 │   ├── apps.py
-│   ├── models.py
+│   ├── models.py                     # AcademicYear, Classroom, Subject, ClassSubjectAssignment
+│   ├── tests.py                      # Academic model constraint tests
 │   └── urls.py
 │
 ├── students/                         # Student records & enrollments
-│   ├── admin.py
+│   ├── admin.py                      # StudentAdmin with filters, search & fieldsets
 │   ├── apps.py
-│   ├── models.py
+│   ├── models.py                     # Student model with validation
+│   ├── tests.py                      # Student model uniqueness & validation tests
 │   └── urls.py
 │
 ├── attendance/                       # Attendance sessions & logs
-│   ├── admin.py
+│   ├── admin.py                      # AttendanceSessionAdmin with inlines & AttendanceAdmin
 │   ├── apps.py
-│   ├── models.py
+│   ├── models.py                     # AttendanceSession, Attendance records & transactions
+│   ├── tests.py                      # Session & record constraint & class validation tests
 │   └── urls.py
 │
 ├── dashboard/                        # Central role-based landing views
 │   ├── apps.py
 │   ├── urls.py
-│   └── views.py
+│   └── views.py                      # Admin & Teacher live database metric routers
 │
 ├── static/                           # Global static assets
 │   ├── css/
 │   │   └── style.css                 # Custom design system & theme
 │   ├── js/
 │   │   └── main.js                   # Client interactivity & helpers
-│   └── images/                       # Brand and graphic assets
+│   └── images/
 │
 └── templates/                        # Global templates
     ├── base.html                     # Standard layout & navigation bar
@@ -100,9 +111,9 @@ Online Attendance Tracking System/
     │   ├── login.html                # Modern login page
     │   └── profile.html              # User & profile management
     ├── dashboard/
-    │   ├── admin_dashboard.html      # Administrative portal
-    │   └── teacher_dashboard.html    # Teacher portal
-    ├── academics/                    # Module template directories
+    │   ├── admin_dashboard.html      # Administrative portal (live metrics)
+    │   └── teacher_dashboard.html    # Teacher portal (live assignments)
+    ├── academics/
     ├── students/
     ├── attendance/
     └── reports/
@@ -114,7 +125,6 @@ Online Attendance Tracking System/
 
 ### 1. Prerequisites
 - Python 3.10 or higher installed on your system.
-- Git (optional, for version control).
 
 ### 2. Create and Activate Virtual Environment
 
@@ -135,22 +145,21 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 4. Configure Environment Variables
-Copy `.env.example` to `.env` (already created for local development):
+### 4. Apply Database Migrations
 ```bash
-cp .env.example .env
-```
-
-### 5. Apply Database Migrations
-```bash
-python manage.py makemigrations accounts
+python manage.py makemigrations
 python manage.py migrate
 ```
 
-### 6. Create Seed Development Users
-A custom management command is provided to instantly generate testing accounts:
+### 5. Create Seed Accounts & Sample Data
+Two management commands are provided for immediate testing:
+
 ```bash
+# 1. Create standard Administrator & Teacher test accounts
 python manage.py create_dev_users
+
+# 2. Populate complete sample academic structure, classes, students, and attendance
+python manage.py seed_sample_data
 ```
 
 **Default Test Credentials:**
@@ -161,43 +170,33 @@ python manage.py create_dev_users
   - Username: `teacher`
   - Password: `teacher123`
 
-*(Optional) Create your own custom superuser:*
-```bash
-python manage.py createsuperuser
-```
-
-### 7. Run Django System Checks & Tests
+### 6. Run System Checks & Automated Tests
 ```bash
 # Verify system integrity
 python manage.py check
 
-# Run automated unit test suite
+# Run full automated test suite (22 tests across all apps)
 python manage.py test
 ```
 
-### 8. Start the Development Server
+### 7. Start the Development Server
 ```bash
 python manage.py runserver
 ```
 Visit the application in your browser at:
 `http://127.0.0.1:8000/`
 
+Django Admin interface:
+`http://127.0.0.1:8000/admin/`
+
 ---
 
-## 🗺️ Next Development Phases
+## 🗺️ Next Development Phase: Frontend Views & Workflows
 
-1. **Phase 2 - Academics Module**:
-   - Academic Year, Semester/Term models.
-   - Class/Section (e.g., Grade 10 - A), Subject catalog.
-   - Teacher-to-Class-Subject allocation mappings.
-2. **Phase 3 - Students Module**:
-   - Student profile model (Admission number, Roll number, Guardian contacts).
-   - Student listing, registration, search, and filtering views.
-3. **Phase 4 - Attendance Module**:
-   - Daily and Subject-wise Attendance Session model.
-   - Attendance Record model (Present, Absent, Late, Excused).
-   - Fast bulk attendance recording interface for teachers.
-4. **Phase 5 - Analytics, Reports & CSV Export**:
-   - Percentage calculation engines and low-attendance thresholds (<75%).
-   - Date range and class-specific report filters.
-   - One-click CSV / tabular exports.
+With the database layer and admin operational:
+1. **Academics & Student Management UI**:
+   - Web views to list, create, edit classes, subjects, and student rosters.
+2. **Interactive Attendance Sheet UI**:
+   - Dedicated teacher attendance taking sheet with quick toggle (Present / Absent / Late / Excused), select-all helpers, and single-click submit.
+3. **Analytics, Reporting & CSV Export**:
+   - Date-range and class-specific filters, percentage calculations, and CSV downloads.
