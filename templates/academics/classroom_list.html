@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+
+{% block title %}Classrooms - Online Attendance Tracking System{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+    <div>
+        <h2 class="fw-bold mb-1">Academic Classrooms</h2>
+        <p class="text-muted small mb-0">
+            {% if user.is_administrator %}
+                Institutional directory of active grades, divisions, and sections.
+            {% else %}
+                Your authorized teaching allocations and classrooms.
+            {% endif %}
+        </p>
+    </div>
+    {% if user.is_administrator %}
+    <div>
+        <a href="{% url 'academics:classroom_create' %}" class="btn btn-primary">
+            <i class="bi bi-plus-circle me-1"></i> Add New Classroom
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<div class="row g-3">
+    {% if classrooms %}
+        {% for classroom in classrooms %}
+            <div class="col-md-6 col-lg-4">
+                <div class="card card-modern h-100">
+                    <div class="card-modern-header d-flex align-items-center justify-content-between">
+                        <span class="fw-bold text-dark fs-5">{{ classroom.display_name }}</span>
+                        <span class="badge bg-primary-subtle text-primary">{{ classroom.academic_year.name }}</span>
+                    </div>
+                    <div class="card-body p-4 d-flex flex-column justify-content-between">
+                        <div class="mb-3">
+                            <p class="small text-muted mb-1">
+                                <i class="bi bi-person-badge text-secondary me-1"></i> Class Teacher:
+                                <strong>
+                                    {% if classroom.class_teacher %}
+                                        {{ classroom.class_teacher.get_full_name|default:classroom.class_teacher.username }}
+                                    {% else %}
+                                        Unassigned
+                                    {% endif %}
+                                </strong>
+                            </p>
+                            <p class="small text-muted mb-0">
+                                <i class="bi bi-people text-secondary me-1"></i> Enrolled Students:
+                                <span class="badge bg-light text-dark border">{{ classroom.students.count }}</span>
+                            </p>
+                        </div>
+                        <div class="d-flex justify-content-end pt-2 border-top">
+                            <a href="{% url 'academics:classroom_detail' classroom.pk %}" class="btn btn-sm btn-outline-primary">
+                                View Class Roster <i class="bi bi-arrow-right ms-1"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    {% else %}
+        <div class="col-12 text-center text-muted py-5 card card-modern">
+            <i class="bi bi-journal-x fs-1 d-block mb-3 text-secondary"></i>
+            <h5>No Authorized Classrooms Available</h5>
+            <p class="small">You do not have access to any active classrooms.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

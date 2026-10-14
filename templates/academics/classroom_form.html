@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Create Classroom - Online Attendance Tracking System{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-6">
+        <div class="d-flex align-items-center justify-content-between mb-4">
+            <div>
+                <h3 class="fw-bold mb-1">Create New Classroom</h3>
+                <p class="text-muted small mb-0">Define an academic grade and section for enrollment and attendance.</p>
+            </div>
+            <a href="{% url 'academics:classroom_list' %}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i> Back to Classrooms
+            </a>
+        </div>
+
+        <div class="card card-modern">
+            <div class="card-modern-header">
+                <span><i class="bi bi-plus-circle me-2 text-primary"></i> Classroom Details</span>
+            </div>
+            <div class="card-body p-4">
+                <form method="post" novalidate>
+                    {% csrf_token %}
+                    {{ form|crispy }}
+                    <div class="d-flex justify-content-end gap-2 pt-3 border-top mt-3">
+                        <a href="{% url 'academics:classroom_list' %}" class="btn btn-light px-4">Cancel</a>
+                        <button type="submit" class="btn btn-primary px-4">
+                            <i class="bi bi-check-lg me-1"></i> Save Classroom
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

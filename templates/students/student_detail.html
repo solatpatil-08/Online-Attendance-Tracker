@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ student.full_name }} - Online Attendance Tracking System{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="d-flex align-items-center justify-content-between mb-4">
+            <div>
+                <h3 class="fw-bold mb-1">{{ student.full_name }}</h3>
+                <p class="text-muted small mb-0">Student Profile &bull; {{ student.classroom.display_name }}</p>
+            </div>
+            <a href="{% url 'students:student_list' %}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i> Back to Students
+            </a>
+        </div>
+
+        <div class="card card-modern mb-4">
+            <div class="card-modern-header d-flex align-items-center justify-content-between">
+                <span class="d-flex align-items-center gap-2">
+                    <i class="bi bi-person-badge-fill text-primary"></i>
+                    <span>Student Registration: <code>{{ student.student_id }}</code></span>
+                </span>
+                <span class="badge {% if student.is_active %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %}">
+                    {% if student.is_active %}Active Student{% else %}Inactive{% endif %}
+                </span>
+            </div>
+            <div class="card-body p-4">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="small text-muted fw-semibold">Class & Section</label>
+                        <p class="fw-bold mb-3">{{ student.classroom.display_name }} ({{ student.classroom.academic_year.name }})</p>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="small text-muted fw-semibold">Roll Number</label>
+                        <p class="fw-bold mb-3">{{ student.roll_number|default:"Not assigned" }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="small text-muted fw-semibold">Date of Birth</label>
+                        <p class="fw-bold mb-3">{{ student.date_of_birth|date:"F j, Y"|default:"Not recorded" }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="small text-muted fw-semibold">Gender</label>
+                        <p class="fw-bold mb-3">{{ student.get_gender_display|default:"Not specified" }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="small text-muted fw-semibold">Enrollment Date</label>
+                        <p class="fw-bold mb-3">{{ student.enrollment_date|date:"F j, Y" }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="small text-muted fw-semibold">Email Address</label>
+                        <p class="fw-bold mb-3">{{ student.email|default:"No email registered" }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="small text-muted fw-semibold">Emergency / Student Phone</label>
+                        <p class="fw-bold mb-3">{{ student.phone_number|default:"Not provided" }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="small text-muted fw-semibold">Parent / Guardian</label>
+                        <p class="fw-bold mb-3">{{ student.guardian_name|default:"Not listed" }} ({{ student.guardian_phone|default:"No phone" }})</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

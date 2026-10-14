@@ -1,0 +1,108 @@
+{% extends 'base.html' %}
+
+{% block title %}Attendance Reports - Online Attendance Tracking System{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+    <div>
+        <h2 class="fw-bold mb-1">Attendance Reports & Analytics</h2>
+        <p class="text-muted small mb-0">Daily status breakdown, class percentage analysis, and attendance audit.</p>
+    </div>
+    <div>
+        <form method="get" class="d-flex align-items-center gap-2">
+            <input type="date" name="date" class="form-control form-control-sm" value="{{ report_date|date:'Y-m-d' }}" onchange="this.form.submit()">
+            <button type="submit" class="btn btn-outline-primary btn-sm">Refresh</button>
+        </form>
+    </div>
+</div>
+
+<!-- Daily Summary Metric Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card">
+            <div>
+                <div class="stat-label">Total Logged</div>
+                <div class="stat-value">{{ total_recorded }}</div>
+            </div>
+            <div class="stat-icon primary"><i class="bi bi-people-fill"></i></div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card">
+            <div>
+                <div class="stat-label">Present</div>
+                <div class="stat-value text-success">{{ present_count }}</div>
+            </div>
+            <div class="stat-icon success"><i class="bi bi-check-circle-fill"></i></div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card">
+            <div>
+                <div class="stat-label">Absent</div>
+                <div class="stat-value text-danger">{{ absent_count }}</div>
+            </div>
+            <div class="stat-icon danger"><i class="bi bi-x-circle-fill"></i></div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card">
+            <div>
+                <div class="stat-label">Attendance Rate</div>
+                <div class="stat-value">{{ overall_percentage }}%</div>
+            </div>
+            <div class="stat-icon warning"><i class="bi bi-pie-chart-fill"></i></div>
+        </div>
+    </div>
+</div>
+
+<!-- Class Breakdown Table -->
+<div class="card card-modern mb-4">
+    <div class="card-modern-header d-flex align-items-center justify-content-between">
+        <span><i class="bi bi-table me-2 text-primary"></i> Class-wise Attendance Performance for {{ report_date|date:"F j, Y" }}</span>
+        <span class="badge bg-secondary-subtle text-secondary small">Denominator: Logged Student Records</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-custom table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Class & Section</th>
+                        <th>Enrolled Students</th>
+                        <th>Logged Records</th>
+                        <th>Present</th>
+                        <th>Late</th>
+                        <th>Absent</th>
+                        <th class="text-end">Attendance Rate</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in class_summaries %}
+                        <tr>
+                            <td class="fw-semibold text-dark">{{ item.classroom.display_name }}</td>
+                            <td><span class="badge bg-light text-dark border">{{ item.total_enrolled }}</span></td>
+                            <td>{{ item.total_recorded }}</td>
+                            <td class="text-success fw-bold">{{ item.present }}</td>
+                            <td class="text-warning fw-semibold">{{ item.late }}</td>
+                            <td class="text-danger fw-bold">{{ item.absent }}</td>
+                            <td class="text-end">
+                                {% if item.percentage is not None %}
+                                    <span class="badge {% if item.percentage >= 80 %}bg-success-subtle text-success{% elif item.percentage >= 60 %}bg-warning-subtle text-warning{% else %}bg-danger-subtle text-danger{% endif %} fs-6">
+                                        {{ item.percentage }}%
+                                    </span>
+                                {% else %}
+                                    <span class="text-muted small">No logs yet</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center py-4 text-muted">No classroom data available.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

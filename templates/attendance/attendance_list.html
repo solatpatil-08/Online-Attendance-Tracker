@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+
+{% block title %}Attendance Records - Online Attendance Tracking System{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+    <div>
+        <h2 class="fw-bold mb-1">Attendance Sessions & Logs</h2>
+        <p class="text-muted small mb-0">Review daily attendance registrations and class log history.</p>
+    </div>
+</div>
+
+<!-- Filters Bar -->
+<div class="card card-modern mb-4">
+    <div class="card-body p-3">
+        <form method="get" class="row g-2 align-items-center">
+            <div class="col-md-4">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-light text-muted"><i class="bi bi-calendar3"></i></span>
+                    <input type="date" name="date" class="form-control" value="{{ selected_date }}">
+                </div>
+            </div>
+            <div class="col-md-5">
+                <select name="class_id" class="form-select form-select-sm">
+                    <option value="">All Classrooms</option>
+                    {% for c in classrooms %}
+                        <option value="{{ c.pk }}" {% if selected_class_id == c.pk|stringformat:"s" %}selected{% endif %}>
+                            {{ c.display_name }} ({{ c.academic_year.name }})
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3 d-flex gap-2">
+                <button type="submit" class="btn btn-primary btn-sm px-3 flex-grow-1">
+                    <i class="bi bi-funnel-fill me-1"></i> Filter
+                </button>
+                <a href="{% url 'attendance:attendance_list' %}" class="btn btn-outline-secondary btn-sm">Reset</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Sessions Table -->
+<div class="card card-modern">
+    <div class="card-modern-header d-flex align-items-center justify-content-between">
+        <span><i class="bi bi-clock-history me-2 text-primary"></i> Attendance Sessions</span>
+        <span class="badge bg-primary-subtle text-primary">{{ sessions|length }} Sessions</span>
+    </div>
+    <div class="card-body p-0">
+        {% if sessions %}
+            <div class="table-responsive">
+                <table class="table table-custom table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Class & Section</th>
+                            <th>Subject</th>
+                            <th>Recorded By</th>
+                            <th>Total Logged</th>
+                            <th>Created Timestamp</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for session in sessions %}
+                            <tr>
+                                <td class="fw-semibold">
+                                    <i class="bi bi-calendar-event text-primary me-1"></i>
+                                    {{ session.date|date:"F j, Y" }}
+                                </td>
+                                <td><span class="badge bg-light text-dark border">{{ session.classroom.display_name }}</span></td>
+                                <td>{{ session.subject.name }} (<code>{{ session.subject.code }}</code>)</td>
+                                <td>{{ session.recorded_by.get_full_name|default:session.recorded_by.username }}</td>
+                                <td>
+                                    <span class="badge bg-info-subtle text-info fw-semibold">{{ session.records.count }} Records</span>
+                                </td>
+                                <td><span class="small text-muted">{{ session.created_at|date:"M j, H:i" }}</span></td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center text-muted py-5">
+                <i class="bi bi-journal-x fs-1 d-block mb-3 text-secondary"></i>
+                <h5>No Attendance Sessions Found</h5>
+                <p class="small mb-0">No attendance sessions match the current query criteria.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

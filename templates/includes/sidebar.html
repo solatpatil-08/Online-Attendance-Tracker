@@ -1,0 +1,105 @@
+<aside class="sidebar-wrapper" id="sidebarNav">
+    <!-- Sidebar Brand -->
+    <div class="sidebar-brand d-flex align-items-center justify-content-between px-3 py-3">
+        <a href="{% url 'dashboard:index' %}" class="d-flex align-items-center text-decoration-none">
+            <span class="sidebar-logo-badge me-2">
+                <i class="bi bi-calendar-check-fill"></i>
+            </span>
+            <div class="d-flex flex-column">
+                <span class="sidebar-brand-name">AttendanceHub</span>
+                <span class="sidebar-brand-sub">Academic Portal</span>
+            </div>
+        </a>
+        <button class="btn btn-sm btn-link text-white-50 d-lg-none p-0" type="button" id="sidebarCloseBtn" aria-label="Close sidebar">
+            <i class="bi bi-x-lg fs-5"></i>
+        </button>
+    </div>
+
+    <!-- Navigation List -->
+    <div class="sidebar-content py-2">
+        <div class="sidebar-section-title px-3 pt-2 pb-1">Main</div>
+        <ul class="sidebar-nav list-unstyled mb-3">
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link {% if request.resolver_match.app_name == 'dashboard' %}active{% endif %}" href="{% url 'dashboard:index' %}">
+                    <i class="bi bi-speedometer2"></i>
+                    <span>Dashboard</span>
+                </a>
+            </li>
+        </ul>
+
+        <div class="sidebar-section-title px-3 pt-2 pb-1">Academic Management</div>
+        <ul class="sidebar-nav list-unstyled mb-3">
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link {% if request.resolver_match.app_name == 'academics' and 'classroom' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'academics:classroom_list' %}">
+                    <i class="bi bi-mortarboard"></i>
+                    <span>Classes & Sections</span>
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link {% if request.resolver_match.app_name == 'academics' and 'subject' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'academics:subject_list' %}">
+                    <i class="bi bi-book-half"></i>
+                    <span>Subjects</span>
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link {% if request.resolver_match.app_name == 'students' %}active{% endif %}" href="{% url 'students:student_list' %}">
+                    <i class="bi bi-people-fill"></i>
+                    <span>Students</span>
+                </a>
+            </li>
+            {% if user.is_administrator %}
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link {% if request.resolver_match.app_name == 'accounts' and 'teacher' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'accounts:teacher_list' %}">
+                    <i class="bi bi-person-video3"></i>
+                    <span>Faculty & Teachers</span>
+                </a>
+            </li>
+            {% endif %}
+        </ul>
+
+        <div class="sidebar-section-title px-3 pt-2 pb-1">Attendance & Logs</div>
+        <ul class="sidebar-nav list-unstyled mb-3">
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link {% if request.resolver_match.app_name == 'attendance' and request.resolver_match.url_name == 'attendance_list' %}active{% endif %}" href="{% url 'attendance:attendance_list' %}">
+                    <i class="bi bi-clipboard-check-fill"></i>
+                    <span>Attendance Records</span>
+                </a>
+            </li>
+            {% if user.can_view_reports %}
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link {% if request.resolver_match.app_name == 'attendance' and request.resolver_match.url_name == 'reports' %}active{% endif %}" href="{% url 'attendance:reports' %}">
+                    <i class="bi bi-bar-chart-line-fill"></i>
+                    <span>Reports & Analytics</span>
+                </a>
+            </li>
+            {% endif %}
+        </ul>
+
+        <div class="sidebar-section-title px-3 pt-2 pb-1">System & User</div>
+        <ul class="sidebar-nav list-unstyled mb-0">
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link {% if request.resolver_match.app_name == 'accounts' and request.resolver_match.url_name == 'profile' %}active{% endif %}" href="{% url 'accounts:profile' %}">
+                    <i class="bi bi-person-circle"></i>
+                    <span>My Profile</span>
+                </a>
+            </li>
+            {% if user.is_superuser %}
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{% url 'admin:index' %}" target="_blank">
+                    <i class="bi bi-shield-lock-fill"></i>
+                    <span>Django Admin</span>
+                </a>
+            </li>
+            {% endif %}
+            <li class="sidebar-nav-item mt-2 pt-2 border-top border-secondary border-opacity-25">
+                <form method="post" action="{% url 'accounts:logout' %}">
+                    {% csrf_token %}
+                    <button type="submit" class="sidebar-nav-link border-0 bg-transparent text-danger w-100 text-start">
+                        <i class="bi bi-box-arrow-right text-danger"></i>
+                        <span>Sign Out</span>
+                    </button>
+                </form>
+            </li>
+        </ul>
+    </div>
+</aside>

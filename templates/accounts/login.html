@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+
+{% block title %}Sign In - Online Attendance Tracking System{% endblock %}
+
+{% block content %}
+<div class="auth-wrapper">
+    <div class="auth-card">
+        <!-- Logo & Branding -->
+        <div class="text-center mb-4">
+            <div class="d-inline-flex align-items-center justify-content-center p-3 rounded-circle bg-primary bg-opacity-10 text-primary mb-3 shadow-xs">
+                <i class="bi bi-calendar-check-fill fs-1"></i>
+            </div>
+            <h3 class="fw-bold mb-1">AttendanceHub</h3>
+            <p class="text-muted small">Sign in with your authorized institutional credentials</p>
+        </div>
+
+        <!-- Generic Authentication Error Feedback -->
+        {% if form.errors or form.non_field_errors %}
+            <div class="alert alert-danger py-2 px-3 small d-flex align-items-center mb-3 shadow-xs" role="alert">
+                <i class="bi bi-shield-slash-fill me-2 fs-5 flex-shrink-0"></i>
+                <div>
+                    <strong>Sign In Failed:</strong> Invalid credentials. Please verify your username/email and password.
+                </div>
+            </div>
+        {% endif %}
+
+        <form method="post" action="{% url 'accounts:login' %}" novalidate id="loginForm">
+            {% csrf_token %}
+
+            {% if request.GET.next %}
+                <input type="hidden" name="next" value="{{ request.GET.next }}">
+            {% endif %}
+
+            <!-- Username or Email Field -->
+            <div class="mb-3">
+                <label for="loginUsername" class="form-label fw-semibold small text-secondary">Username or Email</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-person"></i></span>
+                    {{ form.username }}
+                </div>
+            </div>
+
+            <!-- Password Field with Show/Hide Toggle -->
+            <div class="mb-3">
+                <label for="loginPassword" class="form-label fw-semibold small text-secondary">Password</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-key"></i></span>
+                    {{ form.password }}
+                    <button class="btn btn-outline-secondary border-start-0 bg-light" type="button" id="togglePasswordBtn" title="Toggle password visibility">
+                        <i class="bi bi-eye" id="togglePasswordIcon"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Remember-Me Checkbox -->
+            <div class="d-flex align-items-center justify-content-between mb-4">
+                <div class="form-check">
+                    {{ form.remember_me }}
+                    <label class="form-check-label small text-secondary" for="rememberMeCheck">
+                        Remember this device (2 weeks)
+                    </label>
+                </div>
+            </div>
+
+            <!-- Submit Button -->
+            <div class="d-grid mb-3">
+                <button type="submit" class="btn btn-primary py-2 fw-semibold shadow-xs">
+                    <i class="bi bi-box-arrow-in-right me-1"></i> Sign In to Portal
+                </button>
+            </div>
+        </form>
+
+        <div class="text-center mt-3 pt-3 border-top text-muted small">
+            <span>Online Attendance Tracking System &bull; Secure Academic Portal</span>
+        </div>
+    </div>
+</div>
+{% endblock %}

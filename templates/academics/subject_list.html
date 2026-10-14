@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+
+{% block title %}Subjects - Online Attendance Tracking System{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+    <div>
+        <h2 class="fw-bold mb-1">Subject Directory</h2>
+        <p class="text-muted small mb-0">Academic subject catalog and course codes.</p>
+    </div>
+    {% if user.is_administrator %}
+    <div>
+        <a href="{% url 'academics:subject_create' %}" class="btn btn-primary">
+            <i class="bi bi-plus-circle me-1"></i> Add New Subject
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<div class="card card-modern">
+    <div class="card-modern-header d-flex align-items-center justify-content-between">
+        <span><i class="bi bi-book-half me-2 text-primary"></i> Active Subjects</span>
+        <span class="badge bg-primary-subtle text-primary">{{ subjects|length }} Total</span>
+    </div>
+    <div class="card-body p-0">
+        {% if subjects %}
+            <div class="table-responsive">
+                <table class="table table-custom table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Subject Name</th>
+                            <th>Subject Code</th>
+                            <th>Description</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for subject in subjects %}
+                            <tr>
+                                <td class="fw-semibold text-dark">{{ subject.name }}</td>
+                                <td><code>{{ subject.code }}</code></td>
+                                <td><span class="small text-muted">{{ subject.description|default:"No description provided" }}</span></td>
+                                <td>
+                                    <span class="badge bg-success-subtle text-success">Active</span>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center text-muted py-5">
+                <i class="bi bi-journal-x fs-1 d-block mb-3 text-secondary"></i>
+                <h5>No Subjects Registered</h5>
+                <p class="small mb-0">The academic curriculum has not been initialized with subjects yet.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

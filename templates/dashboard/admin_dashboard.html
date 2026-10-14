@@ -1,0 +1,730 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Administrator Dashboard - Online Attendance Tracking System{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'dashboard:index' %}" class="text-decoration-none">Home</a></li>
+<li class="breadcrumb-item active" aria-current="page">Admin Dashboard</li>
+{% endblock %}
+
+{% block content %}
+<!-- Page Header & Date Filter Toolbar -->
+<div class="row align-items-center mb-4 g-3">
+    <div class="col-lg-6">
+        <h2 class="fw-bold mb-1 text-dark">Institutional Dashboard</h2>
+        <p class="text-muted small mb-0">
+            Real-time academic performance, attendance metrics, and institutional oversight.
+        </p>
+    </div>
+    <div class="col-lg-6">
+        <div class="date-filter-bar d-flex flex-wrap align-items-center justify-content-lg-end gap-2">
+            <!-- Quick Date Buttons -->
+            <div class="btn-group date-btn-group shadow-xs" role="group">
+                <a href="{% url 'dashboard:index' %}?date={{ today|date:'Y-m-d' }}" 
+                   class="btn btn-sm {% if is_today %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+                    Today
+                </a>
+                <a href="{% url 'dashboard:index' %}?date={{ yesterday|date:'Y-m-d' }}" 
+                   class="btn btn-sm {% if selected_date == yesterday %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+                    Yesterday
+                </a>
+            </div>
+
+            <!-- Date Selector Form -->
+            <form method="get" action="{% url 'dashboard:index' %}" class="d-flex align-items-center gap-1">
+                <a href="{% url 'dashboard:index' %}?date={{ prev_day }}" class="btn btn-sm btn-outline-secondary" title="Previous Day">
+                    <i class="bi bi-chevron-left"></i>
+                </a>
+                <input type="date" name="date" class="form-control form-control-sm auto-submit-date shadow-xs" 
+                       value="{{ selected_date_str }}" aria-label="Select Date">
+                <a href="{% url 'dashboard:index' %}?date={{ next_day }}" class="btn btn-sm btn-outline-secondary" title="Next Day">
+                    <i class="bi bi-chevron-right"></i>
+                </a>
+                <button type="submit" class="btn btn-sm btn-outline-primary d-none d-sm-inline-block">
+                    <i class="bi bi-filter"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Date Context Banner -->
+<div class="d-flex align-items-center justify-content-between p-2 px-3 bg-white border rounded-3 mb-4 shadow-xs">
+    <div class="d-flex align-items-center gap-2">
+        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">
+            <i class="bi bi-calendar3 me-1"></i> Active Date
+        </span>
+        <span class="fw-semibold text-dark">{{ selected_date|date:"l, F j, Y" }}</span>
+        {% if is_today %}
+            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">Current Day</span>
+        {% endif %}
+    </div>
+    <div class="small text-muted d-none d-md-block">
+        <i class="bi bi-info-circle me-1"></i>
+        Attendance Rate = (Present + Late) &divide; Total Recorded Entries
+    </div>
+</div>
+
+<!-- Section 1: Institutional Core Metrics (4 Cards) -->
+<div class="mb-4">
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <h6 class="text-uppercase text-muted fw-bold smaller letter-spacing-1 mb-0">
+            <i class="bi bi-building me-1 text-primary"></i> Institutional Capacity
+        </h6>
+        <span class="smaller text-muted">Active database entities</span>
+    </div>
+    <div class="row g-3">
+        <!-- Active Students -->
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="stat-card primary">
+                <div class="stat-card-header">
+                    <span class="stat-label">Active Students</span>
+                    <div class="stat-icon primary">
+                        <i class="bi bi-people-fill"></i>
+                    </div>
+                </div>
+                <div class="stat-value">{{ stats.total_students }}</div>
+                <div class="stat-meta">
+                    <i class="bi bi-check-circle text-primary"></i>
+                    <span>Enrolled across all classes</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Active Teachers -->
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="stat-card success">
+                <div class="stat-card-header">
+                    <span class="stat-label">Active Teachers</span>
+                    <div class="stat-icon success">
+                        <i class="bi bi-person-video3"></i>
+                    </div>
+                </div>
+                <div class="stat-value">{{ stats.total_teachers }}</div>
+                <div class="stat-meta">
+                    <i class="bi bi-mortarboard text-success"></i>
+                    <span>Academic faculty staff</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Active Classes -->
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="stat-card warning">
+                <div class="stat-card-header">
+                    <span class="stat-label">Classrooms</span>
+                    <div class="stat-icon warning">
+                        <i class="bi bi-mortarboard-fill"></i>
+                    </div>
+                </div>
+                <div class="stat-value">{{ stats.total_classes }}</div>
+                <div class="stat-meta">
+                    <i class="bi bi-grid-3x3 text-warning"></i>
+                    <span>Grade divisions & sections</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Total Subjects -->
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="stat-card purple">
+                <div class="stat-card-header">
+                    <span class="stat-label">Subjects</span>
+                    <div class="stat-icon purple">
+                        <i class="bi bi-book-half"></i>
+                    </div>
+                </div>
+                <div class="stat-value">{{ stats.total_subjects }}</div>
+                <div class="stat-meta">
+                    <i class="bi bi-journal-bookmark text-purple"></i>
+                    <span>Active curriculum courses</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Section 2: Selected Date Daily Attendance Statistics (4 Cards) -->
+<div class="mb-4">
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <h6 class="text-uppercase text-muted fw-bold smaller letter-spacing-1 mb-0">
+            <i class="bi bi-calendar2-check me-1 text-success"></i> Attendance Overview ({{ selected_date|date:"M j, Y" }})
+        </h6>
+        <span class="smaller text-muted">Daily participation metrics</span>
+    </div>
+    <div class="row g-3">
+        <!-- Records Count (Denominator) -->
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="stat-card info">
+                <div class="stat-card-header">
+                    <span class="stat-label">Attendance Records</span>
+                    <div class="stat-icon info">
+                        <i class="bi bi-clipboard-data-fill"></i>
+                    </div>
+                </div>
+                <div class="stat-value">{{ stats.records_count }}</div>
+                <div class="stat-meta text-truncate">
+                    <i class="bi bi-people-fill text-info"></i>
+                    <span title="{{ stats.distinct_students_count }} distinct students recorded on this date">{{ stats.distinct_students_count }} distinct students recorded</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Present Students -->
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="stat-card success">
+                <div class="stat-card-header">
+                    <span class="stat-label">Present Students</span>
+                    <div class="stat-icon success">
+                        <i class="bi bi-person-check-fill"></i>
+                    </div>
+                </div>
+                <div class="stat-value">{{ stats.present_count }}</div>
+                <div class="stat-meta">
+                    <i class="bi bi-clock-history text-warning"></i>
+                    <span>+ {{ stats.late_count }} Late recorded</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Absent Students -->
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="stat-card danger">
+                <div class="stat-card-header">
+                    <span class="stat-label">Absent Students</span>
+                    <div class="stat-icon danger">
+                        <i class="bi bi-person-x-fill"></i>
+                    </div>
+                </div>
+                <div class="stat-value">{{ stats.absent_count }}</div>
+                <div class="stat-meta">
+                    <i class="bi bi-info-circle text-muted"></i>
+                    <span>{{ stats.excused_count }} Excused / Authorized</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Overall Attendance Rate -->
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="stat-card {% if stats.records_count == 0 %}secondary{% elif stats.attendance_percentage >= 85 %}success{% elif stats.attendance_percentage >= 70 %}warning{% else %}danger{% endif %}">
+                <div class="stat-card-header">
+                    <span class="stat-label">Attendance Rate</span>
+                    <div class="stat-icon {% if stats.records_count == 0 %}secondary{% elif stats.attendance_percentage >= 85 %}success{% elif stats.attendance_percentage >= 70 %}warning{% else %}danger{% endif %}">
+                        <i class="bi bi-pie-chart-fill"></i>
+                    </div>
+                </div>
+                <div class="stat-value">
+                    {% if stats.records_count > 0 %}
+                        {{ stats.attendance_percentage }}%
+                    {% else %}
+                        <span class="text-muted fs-4">N/A</span>
+                    {% endif %}
+                </div>
+                <div class="mt-2">
+                    <div class="progress progress-thin">
+                        <div class="progress-bar {% if stats.records_count == 0 %}bg-secondary bg-opacity-25{% elif stats.attendance_percentage >= 85 %}bg-success{% elif stats.attendance_percentage >= 70 %}bg-warning{% else %}bg-danger{% endif %}" 
+                             role="progressbar" style="width: {% if stats.records_count > 0 %}{{ stats.attendance_percentage }}{% else %}0{% endif %}%;" 
+                             aria-valuenow="{% if stats.records_count > 0 %}{{ stats.attendance_percentage }}{% else %}0{% endif %}" aria-valuemin="0" aria-valuemax="100">
+                        </div>
+                    </div>
+                </div>
+                <div class="stat-meta mt-2">
+                    <i class="bi bi-calculator text-muted"></i>
+                    <span>
+                        {% if stats.records_count > 0 %}
+                            {{ stats.effective_attended }} of {{ stats.records_count }} recorded attended
+                        {% else %}
+                            No records logged on this date
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Alert / Empty State for Selected Date if 0 records -->
+{% if not has_records %}
+<div class="alert alert-warning border border-warning-subtle rounded-3 p-3 mb-4 d-flex align-items-center justify-content-between shadow-xs">
+    <div class="d-flex align-items-center">
+        <div class="me-3 fs-3 text-warning">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+        </div>
+        <div>
+            <h6 class="fw-bold mb-0">No attendance entries recorded for {{ selected_date|date:"F j, Y" }}</h6>
+            <p class="small mb-0 text-muted">
+                Faculty have not submitted attendance records for this date yet. Only recorded entries are included in percentages.
+            </p>
+        </div>
+    </div>
+    <div class="d-none d-sm-block">
+        <a href="{% url 'attendance:attendance_list' %}" class="btn btn-sm btn-outline-warning text-dark fw-semibold">
+            <i class="bi bi-journal-text me-1"></i> View Attendance Logs
+        </a>
+    </div>
+</div>
+{% endif %}
+
+<!-- Section 3: Visualizations & Trends (Chart.js) -->
+<div class="row g-4 mb-4">
+    <!-- Chart 1: 7-Day Trend -->
+    <div class="col-lg-8">
+        <div class="card card-modern h-100">
+            <div class="card-modern-header">
+                <div>
+                    <span class="fw-bold"><i class="bi bi-graph-up text-primary me-2"></i> Attendance Trend (Last 7 Days)</span>
+                    <span class="d-block text-muted smaller mt-1">Daily institutional attendance rate (%) and participation history</span>
+                </div>
+                <span class="badge bg-light text-dark border">Rolling 7-Day Window</span>
+            </div>
+            <div class="card-body p-3 p-md-4">
+                <div class="chart-wrapper">
+                    <canvas id="attendanceTrendChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chart 2: Present vs Absent Status Distribution -->
+    <div class="col-lg-4">
+        <div class="card card-modern h-100">
+            <div class="card-modern-header">
+                <div>
+                    <span class="fw-bold"><i class="bi bi-pie-chart text-success me-2"></i> Present vs. Absent & Status Breakdown</span>
+                    <span class="d-block text-muted smaller mt-1">{{ selected_date|date:"M j, Y" }} recorded distribution</span>
+                </div>
+                <span class="badge bg-light text-dark border">{{ stats.records_count }} Records</span>
+            </div>
+            <div class="card-body p-3 p-md-4 d-flex flex-column justify-content-between">
+                <div class="chart-wrapper" style="height: 220px;">
+                    <canvas id="statusDistributionChart"></canvas>
+                </div>
+                <!-- Status Mini Breakdown Legend -->
+                <div class="row g-2 mt-3 pt-3 border-top text-center">
+                    <div class="col-3">
+                        <span class="d-block smaller text-muted">Present</span>
+                        <strong class="text-success">{{ stats.present_count }}</strong>
+                    </div>
+                    <div class="col-3">
+                        <span class="d-block smaller text-muted">Late</span>
+                        <strong class="text-warning">{{ stats.late_count }}</strong>
+                    </div>
+                    <div class="col-3">
+                        <span class="d-block smaller text-muted">Absent</span>
+                        <strong class="text-danger">{{ stats.absent_count }}</strong>
+                    </div>
+                    <div class="col-3">
+                        <span class="d-block smaller text-muted">Excused</span>
+                        <strong class="text-info">{{ stats.excused_count }}</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Section 4: Class-Wise Attendance & Summary Table -->
+<div class="row g-4 mb-4">
+    <!-- Chart 3: Class-Wise Performance -->
+    <div class="col-lg-6">
+        <div class="card card-modern h-100">
+            <div class="card-modern-header">
+                <div>
+                    <span class="fw-bold"><i class="bi bi-bar-chart-line text-warning me-2"></i> Class-Wise Attendance Rate</span>
+                    <span class="d-block text-muted smaller mt-1">Recorded attendance percentage across grade levels</span>
+                </div>
+            </div>
+            <div class="card-body p-3 p-md-4">
+                <div class="chart-wrapper">
+                    <canvas id="classAttendanceChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Class Breakdown Table -->
+    <div class="col-lg-6">
+        <div class="card card-modern h-100">
+            <div class="card-modern-header">
+                <div>
+                    <span class="fw-bold"><i class="bi bi-table text-primary me-2"></i> Class Performance Table</span>
+                    <span class="d-block text-muted smaller mt-1">Enrolled vs. recorded participation on {{ selected_date|date:"M j" }}</span>
+                </div>
+                <a href="{% url 'academics:classroom_list' %}" class="btn btn-sm btn-outline-secondary">
+                    View Classes
+                </a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-custom align-middle">
+                        <thead>
+                            <tr>
+                                <th>Class & Section</th>
+                                <th class="text-center">Enrolled</th>
+                                <th class="text-center">Recorded</th>
+                                <th class="text-center">Present / Late</th>
+                                <th class="text-center">Rate</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in class_summaries %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'academics:classroom_detail' item.classroom.pk %}" class="fw-semibold text-decoration-none text-dark">
+                                        {{ item.classroom.display_name }}
+                                    </a>
+                                </td>
+                                <td class="text-center text-muted">{{ item.enrolled_count }}</td>
+                                <td class="text-center">
+                                    {% if item.recorded_count > 0 %}
+                                        <span class="badge bg-light text-dark border">{{ item.recorded_count }}</span>
+                                    {% else %}
+                                        <span class="badge bg-light text-muted">0</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <span class="text-success fw-semibold">{{ item.present_count }}</span>
+                                    <span class="text-muted">/</span>
+                                    <span class="text-warning fw-semibold">{{ item.late_count }}</span>
+                                </td>
+                                <td class="text-center">
+                                    {% if item.percentage is not None %}
+                                        <span class="badge {% if item.percentage >= 85 %}bg-success-subtle text-success border border-success-subtle{% elif item.percentage >= 70 %}bg-warning-subtle text-warning border border-warning-subtle{% else %}bg-danger-subtle text-danger border border-danger-subtle{% endif %}">
+                                            {{ item.percentage }}%
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-secondary-subtle text-secondary">N/A</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center py-4 text-muted">
+                                    No active classrooms found in the database.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Section 5: Recent Attendance Sessions Stream -->
+<div class="card card-modern mb-4">
+    <div class="card-modern-header">
+        <div>
+            <span class="fw-bold"><i class="bi bi-clock-history text-primary me-2"></i> Attendance Sessions Stream</span>
+            <span class="d-block text-muted smaller mt-1">
+                {% if date_sessions %}
+                    Sessions registered on {{ selected_date|date:"F j, Y" }}
+                {% else %}
+                    Recent institutional sessions across all dates
+                {% endif %}
+            </span>
+        </div>
+        <a href="{% url 'attendance:attendance_list' %}" class="btn btn-sm btn-primary">
+            <i class="bi bi-clipboard-check me-1"></i> Full Attendance Log
+        </a>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-custom align-middle">
+                <thead>
+                    <tr>
+                        <th>Date & Time</th>
+                        <th>Classroom</th>
+                        <th>Subject</th>
+                        <th>Recorded By</th>
+                        <th>Students Marked</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for session in date_sessions|default:all_recent_sessions %}
+                    <tr>
+                        <td>
+                            <div class="fw-medium text-dark">{{ session.date|date:"M j, Y" }}</div>
+                            <span class="smaller text-muted">{{ session.created_at|time:"h:i A" }}</span>
+                        </td>
+                        <td>
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
+                                {{ session.classroom.display_name }}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="fw-medium text-dark">{{ session.subject.name|default:"General / Homeroom" }}</div>
+                            <span class="smaller text-muted">{{ session.subject.code|default:"" }}</span>
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <i class="bi bi-person-circle text-muted"></i>
+                                <span>{{ session.recorded_by.get_full_name|default:session.recorded_by.username }}</span>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="badge bg-light text-dark border">
+                                {{ session.records.count }} Records
+                            </span>
+                        </td>
+                        <td class="text-end">
+                            <a href="{% url 'attendance:attendance_list' %}?classroom={{ session.classroom.pk }}&date={{ session.date|date:'Y-m-d' }}" 
+                               class="btn btn-sm btn-outline-secondary">
+                                <i class="bi bi-eye me-1"></i> View Log
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center py-4 text-muted">
+                            <i class="bi bi-folder2-open fs-3 d-block mb-2 text-muted"></i>
+                            No attendance sessions recorded yet.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<!-- Serialized Backend Datasets for Chart.js via Django json_script -->
+{{ trend_labels|json_script:"trend-labels-data" }}
+{{ trend_percentages|json_script:"trend-percentages-data" }}
+{{ trend_presents|json_script:"trend-presents-data" }}
+{{ trend_absents|json_script:"trend-absents-data" }}
+{{ trend_totals|json_script:"trend-totals-data" }}
+{{ status_labels|json_script:"status-labels-data" }}
+{{ status_data|json_script:"status-data" }}
+{{ class_labels|json_script:"class-labels-data" }}
+{{ class_percentages|json_script:"class-percentages-data" }}
+
+<!-- Chart.js Visualizations Script -->
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // 1. Safe JSON data extraction from json_script tags
+    function getJsonData(elementId, fallback) {
+        const el = document.getElementById(elementId);
+        if (!el || !el.textContent) return fallback || [];
+        try {
+            return JSON.parse(el.textContent);
+        } catch (err) {
+            console.error('Error parsing JSON for ' + elementId, err);
+            return fallback || [];
+        }
+    }
+
+    const trendLabels = getJsonData('trend-labels-data', []);
+    const trendPercentages = getJsonData('trend-percentages-data', []);
+    const trendPresents = getJsonData('trend-presents-data', []);
+    const trendAbsents = getJsonData('trend-absents-data', []);
+    const trendTotals = getJsonData('trend-totals-data', []);
+
+    const statusLabels = getJsonData('status-labels-data', ['Present', 'Late', 'Absent', 'Excused']);
+    const statusData = getJsonData('status-data', [0, 0, 0, 0]);
+
+    const classLabels = getJsonData('class-labels-data', []);
+    const classPercentages = getJsonData('class-percentages-data', []);
+
+    // Chart.js global typography and layout defaults
+    Chart.defaults.font.family = "'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+    Chart.defaults.color = '#64748b';
+
+    // 2. Chart 1: 7-Day Attendance Trend (Line Chart with smooth curves)
+    const trendCtx = document.getElementById('attendanceTrendChart');
+    if (trendCtx) {
+        new Chart(trendCtx.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: trendLabels,
+                datasets: [
+                    {
+                        label: 'Attendance Rate (%)',
+                        data: trendPercentages,
+                        borderColor: '#2563eb',
+                        backgroundColor: 'rgba(37, 99, 235, 0.08)',
+                        borderWidth: 2.5,
+                        fill: true,
+                        tension: 0.35,
+                        pointBackgroundColor: '#2563eb',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        yAxisID: 'y'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    intersect: false,
+                    mode: 'index',
+                },
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top',
+                        labels: {
+                            boxWidth: 12,
+                            font: { size: 12, weight: 600 }
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: '#0f172a',
+                        titleFont: { size: 13, weight: 600 },
+                        bodyFont: { size: 12 },
+                        padding: 10,
+                        cornerRadius: 8,
+                        callbacks: {
+                            label: function (context) {
+                                const index = context.dataIndex;
+                                const rate = trendPercentages[index];
+                                const pres = trendPresents[index];
+                                const abs = trendAbsents[index];
+                                const tot = trendTotals[index] !== undefined ? trendTotals[index] : (pres + abs);
+                                return [
+                                    `Attendance: ${rate}%`,
+                                    `Present / Late: ${pres}`,
+                                    `Absent: ${abs}`,
+                                    `Total Logged: ${tot}`
+                                ];
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false }
+                    },
+                    y: {
+                        min: 0,
+                        max: 100,
+                        ticks: {
+                            stepSize: 20,
+                            callback: function(val) { return val + '%'; }
+                        },
+                        grid: {
+                            color: '#f1f5f9'
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // 3. Chart 2: Status Distribution (Doughnut Chart)
+    const statusCtx = document.getElementById('statusDistributionChart');
+    if (statusCtx) {
+        const totalEntries = statusData.reduce((a, b) => a + b, 0);
+        const isEmpty = totalEntries === 0;
+
+        new Chart(statusCtx.getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: isEmpty ? ['No Data Logged'] : statusLabels,
+                datasets: [{
+                    data: isEmpty ? [1] : statusData,
+                    backgroundColor: isEmpty 
+                        ? ['#e2e8f0'] 
+                        : ['#10b981', '#f59e0b', '#ef4444', '#0284c7'],
+                    borderWidth: 2,
+                    borderColor: '#ffffff',
+                    hoverOffset: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '72%',
+                plugins: {
+                    legend: {
+                        display: !isEmpty,
+                        position: 'bottom',
+                        labels: {
+                            boxWidth: 10,
+                            font: { size: 11 }
+                        }
+                    },
+                    tooltip: {
+                        enabled: !isEmpty,
+                        backgroundColor: '#0f172a',
+                        padding: 10,
+                        cornerRadius: 8,
+                        callbacks: {
+                            label: function(context) {
+                                const count = context.raw;
+                                const pct = totalEntries > 0 ? ((count / totalEntries) * 100).toFixed(1) : 0;
+                                return ` ${context.label}: ${count} (${pct}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // 4. Chart 3: Class-Wise Attendance Rate (Bar Chart)
+    const classCtx = document.getElementById('classAttendanceChart');
+    if (classCtx) {
+        new Chart(classCtx.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: classLabels.length > 0 ? classLabels : ['No Classes'],
+                datasets: [{
+                    label: 'Attendance Rate (%)',
+                    data: classPercentages.length > 0 ? classPercentages : [0],
+                    backgroundColor: classPercentages.map(val => {
+                        if (val >= 85) return '#10b981';
+                        if (val >= 70) return '#f59e0b';
+                        return '#ef4444';
+                    }),
+                    borderRadius: 6,
+                    maxBarThickness: 38
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: '#0f172a',
+                        padding: 10,
+                        cornerRadius: 8,
+                        callbacks: {
+                            label: function(context) {
+                                return ` Attendance: ${context.raw}%`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false }
+                    },
+                    y: {
+                        min: 0,
+                        max: 100,
+                        ticks: {
+                            stepSize: 20,
+                            callback: function(val) { return val + '%'; }
+                        },
+                        grid: {
+                            color: '#f1f5f9'
+                        }
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

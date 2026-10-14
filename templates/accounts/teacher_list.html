@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+
+{% block title %}Teacher Management - Online Attendance Tracking System{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+    <div>
+        <h2 class="fw-bold mb-1">Faculty & Teacher Management</h2>
+        <p class="text-muted small mb-0">Manage teaching staff accounts, employee records, and system statuses.</p>
+    </div>
+    <div>
+        <a href="{% url 'accounts:teacher_create' %}" class="btn btn-primary">
+            <i class="bi bi-person-plus-fill me-1"></i> Add New Teacher
+        </a>
+    </div>
+</div>
+
+<div class="card card-modern">
+    <div class="card-modern-header d-flex align-items-center justify-content-between">
+        <span><i class="bi bi-person-video3 me-2 text-primary"></i> Registered Teachers</span>
+        <span class="badge bg-primary-subtle text-primary">{{ teachers|length }} Total</span>
+    </div>
+    <div class="card-body p-0">
+        {% if teachers %}
+            <div class="table-responsive">
+                <table class="table table-custom table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Teacher Name</th>
+                            <th>Username</th>
+                            <th>Employee ID</th>
+                            <th>Department</th>
+                            <th>Email</th>
+                            <th>Status</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for teacher in teachers %}
+                            <tr>
+                                <td>
+                                    <div class="fw-semibold text-dark">{{ teacher.get_full_name|default:teacher.username }}</div>
+                                    <span class="small text-muted">{{ teacher.teacher_profile.qualification|default:"Faculty" }}</span>
+                                </td>
+                                <td><code>{{ teacher.username }}</code></td>
+                                <td><span class="badge bg-light text-dark border">{{ teacher.teacher_profile.employee_id|default:"N/A" }}</span></td>
+                                <td>{{ teacher.teacher_profile.department|default:"General" }}</td>
+                                <td>{{ teacher.email|default:"-" }}</td>
+                                <td>
+                                    {% if teacher.is_active %}
+                                        <span class="badge bg-success-subtle text-success">Active</span>
+                                    {% else %}
+                                        <span class="badge bg-danger-subtle text-danger">Inactive</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">
+                                    <form method="post" action="{% url 'accounts:teacher_toggle_status' teacher.pk %}" class="d-inline">
+                                        {% csrf_token %}
+                                        {% if teacher.is_active %}
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Deactivate account">
+                                                <i class="bi bi-person-x"></i> Deactivate
+                                            </button>
+                                        {% else %}
+                                            <button type="submit" class="btn btn-sm btn-outline-success" title="Activate account">
+                                                <i class="bi bi-person-check"></i> Activate
+                                            </button>
+                                        {% endif %}
+                                    </form>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center text-muted py-5">
+                <i class="bi bi-people fs-1 d-block mb-3 text-secondary"></i>
+                <h5>No Teacher Accounts Registered</h5>
+                <p class="small mb-3">Get started by provisioning faculty credentials.</p>
+                <a href="{% url 'accounts:teacher_create' %}" class="btn btn-primary btn-sm">
+                    <i class="bi bi-person-plus-fill me-1"></i> Register First Teacher
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
