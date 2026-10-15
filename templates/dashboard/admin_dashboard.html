@@ -68,28 +68,40 @@
 
 <!-- Section 1: Institutional Core Metrics (4 Cards) -->
 <div class="mb-4">
-    <div class="d-flex align-items-center justify-content-between mb-3">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
         <h6 class="text-uppercase text-muted fw-bold smaller letter-spacing-1 mb-0">
             <i class="bi bi-building me-1 text-primary"></i> Institutional Capacity
         </h6>
-        <span class="smaller text-muted">Active database entities</span>
+        <div class="d-flex align-items-center gap-2">
+            <a href="{% url 'students:student_create' %}" class="btn btn-sm btn-outline-primary shadow-xs">
+                <i class="bi bi-person-plus-fill me-1"></i> Enroll Student
+            </a>
+            <a href="{% url 'students:student_list' %}" class="btn btn-sm btn-outline-secondary shadow-xs">
+                <i class="bi bi-people me-1"></i> Student Directory
+            </a>
+        </div>
     </div>
     <div class="row g-3">
         <!-- Active Students -->
         <div class="col-12 col-sm-6 col-xl-3">
-            <div class="stat-card primary">
-                <div class="stat-card-header">
-                    <span class="stat-label">Active Students</span>
-                    <div class="stat-icon primary">
-                        <i class="bi bi-people-fill"></i>
+            <a href="{% url 'students:student_list' %}?status=active" class="text-decoration-none d-block h-100">
+                <div class="stat-card primary">
+                    <div class="stat-card-header">
+                        <span class="stat-label">Active Students</span>
+                        <div class="stat-icon primary">
+                            <i class="bi bi-people-fill"></i>
+                        </div>
+                    </div>
+                    <div class="stat-value">{{ stats.total_students }}</div>
+                    <div class="stat-meta d-flex justify-content-between align-items-center">
+                        <div>
+                            <i class="bi bi-check-circle text-primary"></i>
+                            <span>Enrolled across all classes</span>
+                        </div>
+                        <span class="text-primary fw-semibold smaller">Manage &rarr;</span>
                     </div>
                 </div>
-                <div class="stat-value">{{ stats.total_students }}</div>
-                <div class="stat-meta">
-                    <i class="bi bi-check-circle text-primary"></i>
-                    <span>Enrolled across all classes</span>
-                </div>
-            </div>
+            </a>
         </div>
 
         <!-- Active Teachers -->

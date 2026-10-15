@@ -1,0 +1,103 @@
+{% extends 'base.html' %}
+
+{% block title %}Delete or Deactivate {{ student.full_name }} - Online Attendance Tracking System{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'dashboard:index' %}" class="text-decoration-none">Home</a></li>
+<li class="breadcrumb-item"><a href="{% url 'students:student_list' %}" class="text-decoration-none">Students</a></li>
+<li class="breadcrumb-item"><a href="{% url 'students:student_detail' student.pk %}" class="text-decoration-none">{{ student.full_name }}</a></li>
+<li class="breadcrumb-item active" aria-current="page">Delete / Deactivate</li>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-7 col-md-9">
+        <div class="card card-modern shadow-sm border-0">
+            {% if has_attendance_history %}
+                <!-- Case A: Student has historical attendance records - Deletion Blocked -->
+                <div class="card-header bg-warning bg-opacity-10 border-warning border-opacity-25 py-3">
+                    <div class="d-flex align-items-center gap-2 text-warning-emphasis">
+                        <i class="bi bi-shield-exclamation fs-4 text-warning"></i>
+                        <h5 class="fw-bold mb-0">Permanent Deletion Blocked</h5>
+                    </div>
+                </div>
+                <div class="card-body p-4">
+                    <div class="mb-4">
+                        <p class="text-dark fw-semibold mb-2">
+                            Student <strong>{{ student.full_name }}</strong> (ID: <code>{{ student.student_id }}</code>) cannot be permanently deleted.
+                        </p>
+                        <div class="alert alert-warning border-0 bg-warning-subtle d-flex align-items-start gap-3 p-3 rounded-3 mb-3">
+                            <i class="bi bi-info-circle-fill text-warning fs-5 mt-1"></i>
+                            <div class="small text-dark">
+                                <strong>Historical Data Protection:</strong> This student has <strong>{{ records_count }} attendance records</strong> on file.
+                                Deleting this record would destroy historical attendance audit trails and skew institutional analytics.
+                            </div>
+                        </div>
+                        <p class="small text-muted mb-0">
+                            <strong>Recommended Action:</strong> Deactivate the student instead. Deactivation immediately removes the student from future attendance sheets and active class rosters while fully preserving all historical data and reports.
+                        </p>
+                    </div>
+
+                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 pt-3 border-top">
+                        <a href="{% url 'students:student_detail' student.pk %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left me-1"></i> Return to Profile
+                        </a>
+                        <form method="post" action="{% url 'students:student_toggle_status' student.pk %}" class="d-inline">
+                            {% csrf_token %}
+                            <input type="hidden" name="next" value="{% url 'students:student_list' %}">
+                            <button type="submit" class="btn btn-warning shadow-xs text-dark fw-semibold">
+                                <i class="bi bi-person-dash-fill me-1"></i> Deactivate Student Instead
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+            {% else %}
+                <!-- Case B: Student has no attendance history - Safe Deletion with Confirmation -->
+                <div class="card-header bg-danger bg-opacity-10 border-danger border-opacity-25 py-3">
+                    <div class="d-flex align-items-center gap-2 text-danger">
+                        <i class="bi bi-exclamation-triangle-fill fs-4 text-danger"></i>
+                        <h5 class="fw-bold mb-0">Confirm Permanent Deletion</h5>
+                    </div>
+                </div>
+                <div class="card-body p-4">
+                    <div class="mb-4">
+                        <p class="text-dark mb-2">
+                            Are you sure you want to permanently delete the following student record?
+                        </p>
+                        <div class="bg-light p-3 rounded-3 border mb-3">
+                            <div class="row g-2 small">
+                                <div class="col-4 text-muted fw-semibold">Student Name:</div>
+                                <div class="col-8 fw-bold text-dark">{{ student.full_name }}</div>
+
+                                <div class="col-4 text-muted fw-semibold">Student ID:</div>
+                                <div class="col-8"><code>{{ student.student_id }}</code></div>
+
+                                <div class="col-4 text-muted fw-semibold">Classroom:</div>
+                                <div class="col-8">{{ student.classroom.display_name }}</div>
+
+                                <div class="col-4 text-muted fw-semibold">Attendance Records:</div>
+                                <div class="col-8"><span class="badge bg-secondary-subtle text-secondary">0 records (Safe to delete)</span></div>
+                            </div>
+                        </div>
+                        <p class="smaller text-danger mb-0">
+                            <i class="bi bi-exclamation-circle me-1"></i>
+                            This action is permanent and cannot be undone.
+                        </p>
+                    </div>
+
+                    <form method="post" class="d-flex flex-wrap align-items-center justify-content-between gap-2 pt-3 border-top">
+                        {% csrf_token %}
+                        <a href="{% url 'students:student_detail' student.pk %}" class="btn btn-outline-secondary">
+                            Cancel
+                        </a>
+                        <button type="submit" class="btn btn-danger shadow-xs">
+                            <i class="bi bi-trash-fill me-1"></i> Permanently Delete Record
+                        </button>
+                    </form>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

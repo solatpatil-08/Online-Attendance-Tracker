@@ -106,10 +106,22 @@ class Student(models.Model):
                     'enrollment_date': "Enrollment date must be after the student's date of birth."
                 })
 
-        if self.classroom and not self.classroom.is_active and self.is_active:
-            raise ValidationError({
-                'classroom': "Cannot assign an active student to an inactive classroom."
-            })
+        if self.classroom_id:
+            try:
+                classroom = self.classroom
+            except Exception:
+                classroom = None
+            if classroom and not classroom.is_active and self.is_active:
+                raise ValidationError({
+                    'classroom': "Cannot assign an active student to an inactive classroom."
+                })
+
+    def delete(self, *args, **kwargs):
+        if self.attendance_records.exists():
+            raise ValidationError(
+                f"Cannot delete student '{self.full_name}' because attendance records exist for this student. Deactivate the student instead."
+            )
+        return super().delete(*args, **kwargs)
 
     def save(self, *args, **kwargs):
         self.full_clean()
@@ -121,6 +133,10 @@ class Student(models.Model):
 
     def get_full_name(self):
         return self.full_name
+
+    def get_absolute_url(self):
+        from django.urls import reverse
+        return reverse('students:student_detail', kwargs={'pk': self.pk})
 
     def __str__(self):
         roll_str = f" [Roll #{self.roll_number}]" if self.roll_number else ""

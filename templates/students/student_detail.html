@@ -1,65 +1,328 @@
 {% extends 'base.html' %}
 
-{% block title %}{{ student.full_name }} - Online Attendance Tracking System{% endblock %}
+{% block title %}{{ student.full_name }} ({{ student.student_id }}) - Online Attendance Tracking System{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'dashboard:index' %}" class="text-decoration-none">Home</a></li>
+<li class="breadcrumb-item"><a href="{% url 'students:student_list' %}" class="text-decoration-none">Students</a></li>
+<li class="breadcrumb-item active" aria-current="page">{{ student.full_name }}</li>
+{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-lg-8">
-        <div class="d-flex align-items-center justify-content-between mb-4">
-            <div>
-                <h3 class="fw-bold mb-1">{{ student.full_name }}</h3>
-                <p class="text-muted small mb-0">Student Profile &bull; {{ student.classroom.display_name }}</p>
-            </div>
-            <a href="{% url 'students:student_list' %}" class="btn btn-outline-secondary btn-sm">
-                <i class="bi bi-arrow-left me-1"></i> Back to Students
-            </a>
+<!-- Page Header & Action Bar -->
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+    <div>
+        <div class="d-flex align-items-center gap-2 mb-1">
+            <h2 class="fw-bold mb-0 text-dark">{{ student.full_name }}</h2>
+            {% if student.is_active %}
+                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                    <i class="bi bi-check-circle-fill me-1"></i> Active Enrolled
+                </span>
+            {% else %}
+                <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1">
+                    <i class="bi bi-x-circle-fill me-1"></i> Inactive / Deactivated
+                </span>
+            {% endif %}
         </div>
+        <p class="text-muted small mb-0">
+            Student ID: <code>{{ student.student_id }}</code> &bull; {{ student.classroom.display_name }} ({{ student.classroom.academic_year.name }})
+        </p>
+    </div>
 
-        <div class="card card-modern mb-4">
-            <div class="card-modern-header d-flex align-items-center justify-content-between">
-                <span class="d-flex align-items-center gap-2">
-                    <i class="bi bi-person-badge-fill text-primary"></i>
-                    <span>Student Registration: <code>{{ student.student_id }}</code></span>
-                </span>
-                <span class="badge {% if student.is_active %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %}">
-                    {% if student.is_active %}Active Student{% else %}Inactive{% endif %}
-                </span>
-            </div>
-            <div class="card-body p-4">
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <label class="small text-muted fw-semibold">Class & Section</label>
-                        <p class="fw-bold mb-3">{{ student.classroom.display_name }} ({{ student.classroom.academic_year.name }})</p>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="small text-muted fw-semibold">Roll Number</label>
-                        <p class="fw-bold mb-3">{{ student.roll_number|default:"Not assigned" }}</p>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="small text-muted fw-semibold">Date of Birth</label>
-                        <p class="fw-bold mb-3">{{ student.date_of_birth|date:"F j, Y"|default:"Not recorded" }}</p>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="small text-muted fw-semibold">Gender</label>
-                        <p class="fw-bold mb-3">{{ student.get_gender_display|default:"Not specified" }}</p>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="small text-muted fw-semibold">Enrollment Date</label>
-                        <p class="fw-bold mb-3">{{ student.enrollment_date|date:"F j, Y" }}</p>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="small text-muted fw-semibold">Email Address</label>
-                        <p class="fw-bold mb-3">{{ student.email|default:"No email registered" }}</p>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="small text-muted fw-semibold">Emergency / Student Phone</label>
-                        <p class="fw-bold mb-3">{{ student.phone_number|default:"Not provided" }}</p>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="small text-muted fw-semibold">Parent / Guardian</label>
-                        <p class="fw-bold mb-3">{{ student.guardian_name|default:"Not listed" }} ({{ student.guardian_phone|default:"No phone" }})</p>
+    <!-- Administrative Quick Actions -->
+    <div class="d-flex flex-wrap align-items-center gap-2">
+        <a href="{% url 'students:student_list' %}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left me-1"></i> Back to Roster
+        </a>
+        {% if user.is_administrator %}
+            <a href="{% url 'students:student_edit' student.pk %}" class="btn btn-outline-primary btn-sm">
+                <i class="bi bi-pencil me-1"></i> Edit Student
+            </a>
+            <!-- Deactivate / Activate Form -->
+            <form method="post" action="{% url 'students:student_toggle_status' student.pk %}" class="d-inline">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.path }}">
+                {% if student.is_active %}
+                    <button type="submit" class="btn btn-outline-warning btn-sm text-dark" 
+                            onclick="return confirm('Are you sure you want to deactivate {{ student.full_name }}? Historical attendance records will remain preserved.');">
+                        <i class="bi bi-person-dash me-1"></i> Deactivate
+                    </button>
+                {% else %}
+                    <button type="submit" class="btn btn-outline-success btn-sm"
+                            onclick="return confirm('Reactivate student {{ student.full_name }} to active status?');">
+                        <i class="bi bi-person-check me-1"></i> Activate
+                    </button>
+                {% endif %}
+            </form>
+            <a href="{% url 'students:student_delete' student.pk %}" class="btn btn-outline-danger btn-sm">
+                <i class="bi bi-trash me-1"></i> Delete
+            </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Attendance Analytics Summary (Actual Database Records) -->
+<div class="mb-4">
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <h6 class="text-uppercase text-muted fw-bold smaller letter-spacing-1 mb-0">
+            <i class="bi bi-pie-chart-fill me-1 text-primary"></i> Attendance Performance Summary
+        </h6>
+        <span class="smaller text-muted">Calculated from institutional attendance logs</span>
+    </div>
+    <div class="row g-3">
+        <!-- Attendance Percentage Rate -->
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="stat-card {% if attendance_summary.percentage is None %}secondary{% elif attendance_summary.percentage >= 85 %}success{% elif attendance_summary.percentage >= 70 %}warning{% else %}danger{% endif %}">
+                <div class="stat-card-header">
+                    <span class="stat-label">Attendance Rate</span>
+                    <div class="stat-icon {% if attendance_summary.percentage is None %}secondary{% elif attendance_summary.percentage >= 85 %}success{% elif attendance_summary.percentage >= 70 %}warning{% else %}danger{% endif %}">
+                        <i class="bi bi-percent"></i>
                     </div>
                 </div>
+                <div class="stat-value">
+                    {% if attendance_summary.percentage is not None %}
+                        {{ attendance_summary.percentage }}%
+                    {% else %}
+                        <span class="text-muted fs-4">No records</span>
+                    {% endif %}
+                </div>
+                <div class="mt-2">
+                    <div class="progress progress-thin">
+                        <div class="progress-bar {% if attendance_summary.percentage is None %}bg-secondary bg-opacity-25{% elif attendance_summary.percentage >= 85 %}bg-success{% elif attendance_summary.percentage >= 70 %}bg-warning{% else %}bg-danger{% endif %}" 
+                             role="progressbar" 
+                             style="width: {% if attendance_summary.percentage %}{{ attendance_summary.percentage }}{% else %}0{% endif %}%;" 
+                             aria-valuenow="{% if attendance_summary.percentage %}{{ attendance_summary.percentage }}{% else %}0{% endif %}" 
+                             aria-valuemin="0" aria-valuemax="100">
+                        </div>
+                    </div>
+                </div>
+                <div class="stat-meta mt-2">
+                    <i class="bi bi-check2-circle text-muted"></i>
+                    <span>{{ attendance_summary.attended_count }} of {{ attendance_summary.total_sessions }} sessions attended</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Present Sessions -->
+        <div class="col-6 col-sm-3 col-xl-2">
+            <div class="stat-card success">
+                <div class="stat-card-header">
+                    <span class="stat-label">Present</span>
+                    <div class="stat-icon success">
+                        <i class="bi bi-person-check-fill"></i>
+                    </div>
+                </div>
+                <div class="stat-value">{{ attendance_summary.present_count }}</div>
+                <div class="stat-meta">
+                    <span class="text-success fw-semibold">On-time</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Late Sessions -->
+        <div class="col-6 col-sm-3 col-xl-2">
+            <div class="stat-card warning">
+                <div class="stat-card-header">
+                    <span class="stat-label">Late</span>
+                    <div class="stat-icon warning">
+                        <i class="bi bi-clock-history"></i>
+                    </div>
+                </div>
+                <div class="stat-value">{{ attendance_summary.late_count }}</div>
+                <div class="stat-meta">
+                    <span class="text-warning fw-semibold">Counted attended</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Absent Sessions -->
+        <div class="col-6 col-sm-3 col-xl-2">
+            <div class="stat-card danger">
+                <div class="stat-card-header">
+                    <span class="stat-label">Absent</span>
+                    <div class="stat-icon danger">
+                        <i class="bi bi-person-x-fill"></i>
+                    </div>
+                </div>
+                <div class="stat-value">{{ attendance_summary.absent_count }}</div>
+                <div class="stat-meta">
+                    <span class="text-danger fw-semibold">Unexcused</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Excused Sessions -->
+        <div class="col-6 col-sm-3 col-xl-3">
+            <div class="stat-card info">
+                <div class="stat-card-header">
+                    <span class="stat-label">Excused / Authorized</span>
+                    <div class="stat-icon info">
+                        <i class="bi bi-shield-check"></i>
+                    </div>
+                </div>
+                <div class="stat-value">{{ attendance_summary.excused_count }}</div>
+                <div class="stat-meta">
+                    <span class="text-info fw-semibold">Leave approved</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Student Profile Information Card -->
+    <div class="col-lg-5">
+        <div class="card card-modern h-100">
+            <div class="card-modern-header d-flex align-items-center justify-content-between">
+                <span class="fw-bold text-dark">
+                    <i class="bi bi-person-vcard text-primary me-2"></i> Student Profile
+                </span>
+                <span class="badge bg-light text-dark border"><code>{{ student.student_id }}</code></span>
+            </div>
+            <div class="card-body p-4">
+                <div class="d-flex align-items-center gap-3 mb-4 pb-3 border-bottom">
+                    <div class="rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center fw-bold fs-4" style="width: 56px; height: 56px;">
+                        {{ student.first_name|slice:":1" }}{{ student.last_name|slice:":1" }}
+                    </div>
+                    <div>
+                        <h5 class="fw-bold mb-0 text-dark">{{ student.full_name }}</h5>
+                        <span class="small text-muted">{{ student.classroom.display_name }}</span>
+                    </div>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-6">
+                        <label class="small text-muted fw-semibold d-block">Classroom</label>
+                        <span class="fw-semibold text-dark">{{ student.classroom.display_name }}</span>
+                    </div>
+                    <div class="col-6">
+                        <label class="small text-muted fw-semibold d-block">Academic Year</label>
+                        <span class="text-dark">{{ student.classroom.academic_year.name }}</span>
+                    </div>
+                    <div class="col-6">
+                        <label class="small text-muted fw-semibold d-block">Roll Number</label>
+                        <span class="fw-semibold text-dark">{{ student.roll_number|default:"Not assigned" }}</span>
+                    </div>
+                    <div class="col-6">
+                        <label class="small text-muted fw-semibold d-block">Gender</label>
+                        <span class="text-dark">{{ student.get_gender_display|default:"Not specified" }}</span>
+                    </div>
+                    <div class="col-6">
+                        <label class="small text-muted fw-semibold d-block">Date of Birth</label>
+                        <span class="text-dark">{{ student.date_of_birth|date:"F j, Y"|default:"Not recorded" }}</span>
+                    </div>
+                    <div class="col-6">
+                        <label class="small text-muted fw-semibold d-block">Enrollment Date</label>
+                        <span class="text-dark">{{ student.enrollment_date|date:"F j, Y" }}</span>
+                    </div>
+
+                    <div class="col-12 pt-2 border-top">
+                        <label class="small text-muted fw-semibold d-block">Student Email</label>
+                        {% if student.email %}
+                            <a href="mailto:{{ student.email }}" class="text-decoration-none text-primary">{{ student.email }}</a>
+                        {% else %}
+                            <span class="text-muted small fst-italic">No email registered</span>
+                        {% endif %}
+                    </div>
+                    <div class="col-12">
+                        <label class="small text-muted fw-semibold d-block">Contact Phone</label>
+                        <span class="text-dark">{{ student.phone_number|default:"Not provided" }}</span>
+                    </div>
+
+                    <div class="col-12 pt-2 border-top">
+                        <label class="small text-muted fw-semibold d-block">Parent / Guardian</label>
+                        <div class="fw-semibold text-dark">{{ student.guardian_name|default:"Not recorded" }}</div>
+                        {% if student.guardian_phone %}
+                            <span class="small text-muted">Phone: {{ student.guardian_phone }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Attendance History Log Card -->
+    <div class="col-lg-7">
+        <div class="card card-modern h-100">
+            <div class="card-modern-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+                <div>
+                    <span class="fw-bold text-dark">
+                        <i class="bi bi-clock-history text-primary me-2"></i> Recent Attendance Records
+                    </span>
+                    <span class="d-block text-muted smaller mt-1">Logged sessions from actual database records</span>
+                </div>
+                <span class="badge bg-light text-dark border">
+                    {{ attendance_summary.total_sessions }} Total Records
+                </span>
+            </div>
+            <div class="card-body p-0">
+                {% if recent_records %}
+                    <div class="table-responsive">
+                        <table class="table table-custom table-hover align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Subject</th>
+                                    <th>Status</th>
+                                    <th>Recorded By</th>
+                                    <th>Remarks</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for att in recent_records %}
+                                    <tr>
+                                        <td>
+                                            <span class="fw-medium text-dark">{{ att.date|date:"M d, Y" }}</span>
+                                        </td>
+                                        <td>
+                                            <span class="small fw-semibold text-dark">{{ att.subject.name }}</span>
+                                            <span class="smaller text-muted d-block">{{ att.subject.code }}</span>
+                                        </td>
+                                        <td>
+                                            {% if att.status == 'PRESENT' %}
+                                                <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                                    Present
+                                                </span>
+                                            {% elif att.status == 'LATE' %}
+                                                <span class="badge bg-warning-subtle text-warning border border-warning-subtle">
+                                                    Late
+                                                </span>
+                                            {% elif att.status == 'ABSENT' %}
+                                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
+                                                    Absent
+                                                </span>
+                                            {% elif att.status == 'EXCUSED' %}
+                                                <span class="badge bg-info-subtle text-info border border-info-subtle">
+                                                    Excused
+                                                </span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <span class="small text-muted">
+                                                {{ att.recorded_by.get_full_name|default:att.recorded_by.username }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            {% if att.remarks %}
+                                                <span class="small text-dark">{{ att.remarks }}</span>
+                                            {% else %}
+                                                <span class="small text-muted fst-italic">-</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center text-muted py-5 px-3">
+                        <i class="bi bi-calendar-x fs-1 d-block mb-3 text-secondary"></i>
+                        <h6 class="fw-semibold text-dark">No Attendance Records Logged</h6>
+                        <p class="small text-muted mb-0">
+                            No attendance records have been registered for this student yet.
+                        </p>
+                    </div>
+                {% endif %}
             </div>
         </div>
     </div>

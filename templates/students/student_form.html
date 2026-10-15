@@ -1,33 +1,269 @@
 {% extends 'base.html' %}
-{% load crispy_forms_tags %}
 
-{% block title %}Enroll Student - Online Attendance Tracking System{% endblock %}
+{% block title %}
+    {% if is_edit %}Edit Student - {{ student.full_name }}{% else %}Enroll New Student{% endif %} - Online Attendance Tracking System
+{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'dashboard:index' %}" class="text-decoration-none">Home</a></li>
+<li class="breadcrumb-item"><a href="{% url 'students:student_list' %}" class="text-decoration-none">Students</a></li>
+{% if is_edit %}
+    <li class="breadcrumb-item"><a href="{% url 'students:student_detail' student.pk %}" class="text-decoration-none">{{ student.full_name }}</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Edit</li>
+{% else %}
+    <li class="breadcrumb-item active" aria-current="page">Enroll</li>
+{% endif %}
+{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
-    <div class="col-lg-8">
-        <div class="d-flex align-items-center justify-content-between mb-4">
+    <div class="col-xl-9 col-lg-10">
+        <!-- Page Header -->
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
             <div>
-                <h3 class="fw-bold mb-1">Enroll New Student</h3>
-                <p class="text-muted small mb-0">Register student identity and assign to an active academic classroom.</p>
+                <h3 class="fw-bold mb-1 text-dark">
+                    {% if is_edit %}
+                        <i class="bi bi-pencil-square text-primary me-2"></i>Edit Student Profile
+                    {% else %}
+                        <i class="bi bi-person-plus-fill text-primary me-2"></i>Enroll New Student
+                    {% endif %}
+                </h3>
+                <p class="text-muted small mb-0">
+                    {% if is_edit %}
+                        Update academic assignment, identity, contact information, and enrollment status.
+                    {% else %}
+                        Register academic identity, assign class and section, and establish contact records.
+                    {% endif %}
+                </p>
             </div>
-            <a href="{% url 'students:student_list' %}" class="btn btn-outline-secondary btn-sm">
-                <i class="bi bi-arrow-left me-1"></i> Back to Student Directory
-            </a>
+            <div>
+                <a href="{% if is_edit %}{% url 'students:student_detail' student.pk %}{% else %}{% url 'students:student_list' %}{% endif %}" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-arrow-left me-1"></i> Cancel & Return
+                </a>
+            </div>
         </div>
 
-        <div class="card card-modern">
-            <div class="card-modern-header">
-                <span><i class="bi bi-person-plus-fill me-2 text-primary"></i> Enrollment Information</span>
+        <!-- Enrollment / Edit Card -->
+        <div class="card card-modern shadow-sm">
+            <div class="card-modern-header d-flex align-items-center justify-content-between">
+                <span class="fw-bold text-dark">
+                    <i class="bi bi-file-earmark-person me-2 text-primary"></i>
+                    {% if is_edit %}Updating Student Record: <code>{{ student.student_id }}</code>{% else %}Student Enrollment Application{% endif %}
+                </span>
+                <span class="smaller text-muted">* Indicates required fields</span>
             </div>
             <div class="card-body p-4">
                 <form method="post" novalidate>
                     {% csrf_token %}
-                    {{ form|crispy }}
-                    <div class="d-flex justify-content-end gap-2 pt-3 border-top mt-3">
-                        <a href="{% url 'students:student_list' %}" class="btn btn-light px-4">Cancel</a>
-                        <button type="submit" class="btn btn-primary px-4">
-                            <i class="bi bi-check-lg me-1"></i> Complete Enrollment
+
+                    <!-- Non-Field Validation Errors Alert -->
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger alert-dismissible fade show shadow-xs border-0 mb-4" role="alert">
+                            <i class="bi bi-exclamation-triangle-fill text-danger me-2"></i>
+                            <strong>Please correct the following errors:</strong>
+                            <ul class="mb-0 mt-1 small">
+                                {% for error in form.non_field_errors %}
+                                    <li>{{ error }}</li>
+                                {% endfor %}
+                            </ul>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endif %}
+
+                    <!-- Section 1: Academic & Institutional Placement -->
+                    <div class="mb-4">
+                        <div class="d-flex align-items-center gap-2 mb-3 pb-2 border-bottom">
+                            <span class="badge bg-primary rounded-circle p-1" style="width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center;">1</span>
+                            <h6 class="fw-bold mb-0 text-dark">Academic & Enrollment Identification</h6>
+                        </div>
+                        <div class="row g-3">
+                            <!-- Student ID -->
+                            <div class="col-md-6">
+                                <label for="{{ form.student_id.id_for_label }}" class="form-label small fw-semibold text-dark">
+                                    {{ form.student_id.label }} <span class="text-danger">*</span>
+                                </label>
+                                {{ form.student_id }}
+                                {% if form.student_id.help_text %}
+                                    <div class="form-text smaller">{{ form.student_id.help_text }}</div>
+                                {% endif %}
+                                {% for error in form.student_id.errors %}
+                                    <div class="text-danger smaller mt-1"><i class="bi bi-exclamation-circle me-1"></i>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+
+                            <!-- Class & Section -->
+                            <div class="col-md-6">
+                                <label for="{{ form.classroom.id_for_label }}" class="form-label small fw-semibold text-dark">
+                                    {{ form.classroom.label }} <span class="text-danger">*</span>
+                                </label>
+                                {{ form.classroom }}
+                                {% if form.classroom.help_text %}
+                                    <div class="form-text smaller">{{ form.classroom.help_text }}</div>
+                                {% endif %}
+                                {% for error in form.classroom.errors %}
+                                    <div class="text-danger smaller mt-1"><i class="bi bi-exclamation-circle me-1"></i>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+
+                            <!-- Roll Number -->
+                            <div class="col-md-4">
+                                <label for="{{ form.roll_number.id_for_label }}" class="form-label small fw-semibold text-dark">
+                                    {{ form.roll_number.label }}
+                                </label>
+                                {{ form.roll_number }}
+                                {% if form.roll_number.help_text %}
+                                    <div class="form-text smaller">{{ form.roll_number.help_text }}</div>
+                                {% endif %}
+                                {% for error in form.roll_number.errors %}
+                                    <div class="text-danger smaller mt-1"><i class="bi bi-exclamation-circle me-1"></i>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+
+                            <!-- Enrollment Date -->
+                            <div class="col-md-4">
+                                <label for="{{ form.enrollment_date.id_for_label }}" class="form-label small fw-semibold text-dark">
+                                    {{ form.enrollment_date.label }} <span class="text-danger">*</span>
+                                </label>
+                                {{ form.enrollment_date }}
+                                {% if form.enrollment_date.help_text %}
+                                    <div class="form-text smaller">{{ form.enrollment_date.help_text }}</div>
+                                {% endif %}
+                                {% for error in form.enrollment_date.errors %}
+                                    <div class="text-danger smaller mt-1"><i class="bi bi-exclamation-circle me-1"></i>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+
+                            <!-- Active Status -->
+                            <div class="col-md-4 d-flex align-items-center">
+                                <div class="form-check form-switch mt-3 pt-2">
+                                    {{ form.is_active }}
+                                    <label class="form-check-label fw-semibold text-dark ms-2" for="{{ form.is_active.id_for_label }}">
+                                        {{ form.is_active.label }}
+                                    </label>
+                                    <div class="form-text smaller">{{ form.is_active.help_text }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section 2: Personal Identification -->
+                    <div class="mb-4">
+                        <div class="d-flex align-items-center gap-2 mb-3 pb-2 border-bottom">
+                            <span class="badge bg-primary rounded-circle p-1" style="width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center;">2</span>
+                            <h6 class="fw-bold mb-0 text-dark">Personal Information</h6>
+                        </div>
+                        <div class="row g-3">
+                            <!-- First Name -->
+                            <div class="col-md-6">
+                                <label for="{{ form.first_name.id_for_label }}" class="form-label small fw-semibold text-dark">
+                                    {{ form.first_name.label }} <span class="text-danger">*</span>
+                                </label>
+                                {{ form.first_name }}
+                                {% for error in form.first_name.errors %}
+                                    <div class="text-danger smaller mt-1"><i class="bi bi-exclamation-circle me-1"></i>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+
+                            <!-- Last Name -->
+                            <div class="col-md-6">
+                                <label for="{{ form.last_name.id_for_label }}" class="form-label small fw-semibold text-dark">
+                                    {{ form.last_name.label }} <span class="text-danger">*</span>
+                                </label>
+                                {{ form.last_name }}
+                                {% for error in form.last_name.errors %}
+                                    <div class="text-danger smaller mt-1"><i class="bi bi-exclamation-circle me-1"></i>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+
+                            <!-- Gender -->
+                            <div class="col-md-6">
+                                <label for="{{ form.gender.id_for_label }}" class="form-label small fw-semibold text-dark">
+                                    {{ form.gender.label }}
+                                </label>
+                                {{ form.gender }}
+                                {% for error in form.gender.errors %}
+                                    <div class="text-danger smaller mt-1"><i class="bi bi-exclamation-circle me-1"></i>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+
+                            <!-- Date of Birth -->
+                            <div class="col-md-6">
+                                <label for="{{ form.date_of_birth.id_for_label }}" class="form-label small fw-semibold text-dark">
+                                    {{ form.date_of_birth.label }}
+                                </label>
+                                {{ form.date_of_birth }}
+                                <div class="form-text smaller">Must be a date in the past.</div>
+                                {% for error in form.date_of_birth.errors %}
+                                    <div class="text-danger smaller mt-1"><i class="bi bi-exclamation-circle me-1"></i>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section 3: Contact & Emergency/Guardian Information -->
+                    <div class="mb-4">
+                        <div class="d-flex align-items-center gap-2 mb-3 pb-2 border-bottom">
+                            <span class="badge bg-primary rounded-circle p-1" style="width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center;">3</span>
+                            <h6 class="fw-bold mb-0 text-dark">Contact & Guardian Details</h6>
+                        </div>
+                        <div class="row g-3">
+                            <!-- Student Email -->
+                            <div class="col-md-6">
+                                <label for="{{ form.email.id_for_label }}" class="form-label small fw-semibold text-dark">
+                                    {{ form.email.label }}
+                                </label>
+                                {{ form.email }}
+                                {% for error in form.email.errors %}
+                                    <div class="text-danger smaller mt-1"><i class="bi bi-exclamation-circle me-1"></i>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+
+                            <!-- Contact Phone -->
+                            <div class="col-md-6">
+                                <label for="{{ form.phone_number.id_for_label }}" class="form-label small fw-semibold text-dark">
+                                    {{ form.phone_number.label }}
+                                </label>
+                                {{ form.phone_number }}
+                                {% for error in form.phone_number.errors %}
+                                    <div class="text-danger smaller mt-1"><i class="bi bi-exclamation-circle me-1"></i>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+
+                            <!-- Guardian Name -->
+                            <div class="col-md-6">
+                                <label for="{{ form.guardian_name.id_for_label }}" class="form-label small fw-semibold text-dark">
+                                    {{ form.guardian_name.label }}
+                                </label>
+                                {{ form.guardian_name }}
+                                {% for error in form.guardian_name.errors %}
+                                    <div class="text-danger smaller mt-1"><i class="bi bi-exclamation-circle me-1"></i>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+
+                            <!-- Guardian Phone -->
+                            <div class="col-md-6">
+                                <label for="{{ form.guardian_phone.id_for_label }}" class="form-label small fw-semibold text-dark">
+                                    {{ form.guardian_phone.label }}
+                                </label>
+                                {{ form.guardian_phone }}
+                                {% for error in form.guardian_phone.errors %}
+                                    <div class="text-danger smaller mt-1"><i class="bi bi-exclamation-circle me-1"></i>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Submit & Action Buttons -->
+                    <div class="d-flex flex-wrap align-items-center justify-content-end gap-2 pt-3 border-top mt-4">
+                        <a href="{% if is_edit %}{% url 'students:student_detail' student.pk %}{% else %}{% url 'students:student_list' %}{% endif %}" class="btn btn-light px-4">
+                            Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary px-4 shadow-xs">
+                            {% if is_edit %}
+                                <i class="bi bi-check-lg me-1"></i> Save Changes
+                            {% else %}
+                                <i class="bi bi-person-check-fill me-1"></i> Complete Enrollment
+                            {% endif %}
                         </button>
                     </div>
                 </form>
