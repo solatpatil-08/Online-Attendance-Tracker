@@ -17,27 +17,44 @@ load_dotenv(BASE_DIR / '.env')
 
 from django.core.exceptions import ImproperlyConfigured
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv(
-    'SECRET_KEY',
-    'django-insecure-attendance-tracking-system-change-in-production'
-)
-
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv('DEBUG', 'True').lower() in ('true', '1', 't')
+# Defaults to False for security if not explicitly set to True in the environment
+DEBUG = os.getenv('DEBUG', 'False').lower() in ('true', '1', 't')
 
-if not DEBUG and (not SECRET_KEY or SECRET_KEY.startswith('django-insecure-')):
+# SECURITY WARNING: keep the secret key used in production secret!
+SECRET_KEY = os.getenv('SECRET_KEY')
+if not SECRET_KEY:
+    if DEBUG:
+        SECRET_KEY = 'django-insecure-attendance-tracking-system-change-in-production'
+    else:
+        raise ImproperlyConfigured(
+            "CRITICAL: The SECRET_KEY environment variable is missing. "
+            "In production environments (DEBUG=False), a cryptographically strong SECRET_KEY must be configured."
+        )
+elif not DEBUG and SECRET_KEY.startswith('django-insecure-'):
     raise ImproperlyConfigured(
-        "In production environments (DEBUG=False), a strong SECRET_KEY environment variable must be provided."
+        "CRITICAL: Production environment (DEBUG=False) detected with an insecure default SECRET_KEY. "
+        "Please provide a cryptographically secure SECRET_KEY in your environment."
     )
 
-ALLOWED_HOSTS = [
-    host.strip()
-    for host in os.getenv('ALLOWED_HOSTS', '127.0.0.1,localhost,testserver').split(',')
-    if host.strip()
-]
-if DEBUG and 'testserver' not in ALLOWED_HOSTS:
+# Hosts / Domain names that this Django site can serve
+ALLOWED_HOSTS_RAW = os.getenv('ALLOWED_HOSTS', '')
+if ALLOWED_HOSTS_RAW:
+    ALLOWED_HOSTS = [host.strip() for host in ALLOWED_HOSTS_RAW.split(',') if host.strip()]
+elif DEBUG:
+    ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'testserver']
+else:
+    ALLOWED_HOSTS = []
+
+if 'testserver' not in ALLOWED_HOSTS:
     ALLOWED_HOSTS.append('testserver')
+
+# Trusted origins for CSRF protection on POST/mutation requests
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv('CSRF_TRUSTED_ORIGINS', '').split(',')
+    if origin.strip()
+]
 
 
 
@@ -66,6 +83,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -97,15 +115,40 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 
 
-# Database
-# https://docs.djangoproject.com/en/5.1/ref/settings/#databases
+# Database Configuration
+# Supports DATABASE_URL (PostgreSQL, MySQL, etc.) via dj-database-url, discrete DB_* variables,
+# and falls back to SQLite for convenient local development.
+import dj_database_url
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+DATABASE_URL = os.getenv('DATABASE_URL')
+if DATABASE_URL:
+    DATABASES = {
+        'default': dj_database_url.config(
+            default=DATABASE_URL,
+            conn_max_age=int(os.getenv('CONN_MAX_AGE', 600)),
+            conn_health_checks=True,
+        )
     }
-}
+elif os.getenv('DB_ENGINE'):
+    DATABASES = {
+        'default': {
+            'ENGINE': os.getenv('DB_ENGINE'),
+            'NAME': os.getenv('DB_NAME', ''),
+            'USER': os.getenv('DB_USER', ''),
+            'PASSWORD': os.getenv('DB_PASSWORD', ''),
+            'HOST': os.getenv('DB_HOST', ''),
+            'PORT': os.getenv('DB_PORT', ''),
+            'CONN_MAX_AGE': int(os.getenv('CONN_MAX_AGE', 600)),
+            'CONN_HEALTH_CHECKS': True,
+        }
+    }
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 
 # Custom User Model
@@ -153,6 +196,21 @@ STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
+# WhiteNoise storage configuration
+# Uses hashed manifests in production for cache busting; standard storage in development
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": (
+            "whitenoise.storage.CompressedManifestStaticFilesStorage"
+            if not DEBUG
+            else "django.contrib.staticfiles.storage.StaticFilesStorage"
+        ),
+    },
+}
+
 # Media files (User uploads, avatars, documents)
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
@@ -191,8 +249,15 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Session and Cookie Security Configuration
 SESSION_COOKIE_HTTPONLY = True
+CSRF_COOKIE_HTTPONLY = True
 SESSION_COOKIE_AGE = int(os.getenv('SESSION_COOKIE_AGE', 1209600))  # 14 days default
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+SESSION_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_SAMESITE = 'Lax'
+
+# Reverse Proxy SSL Header (for Nginx, Caddy, AWS ALB, Cloudflare, etc.)
+if os.getenv('USE_X_FORWARDED_PROTO', 'False').lower() in ('true', '1', 't'):
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 if not DEBUG:
     # Production Security Hardening
@@ -201,12 +266,65 @@ if not DEBUG:
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     X_FRAME_OPTIONS = 'DENY'
+    
+    # HTTPS / SSL settings
+    # Default to True in production; can be set to False if SSL termination is handled upstream
+    SECURE_SSL_REDIRECT = os.getenv('SECURE_SSL_REDIRECT', 'True').lower() in ('true', '1', 't')
+    
+    # HTTP Strict Transport Security (HSTS)
     SECURE_HSTS_SECONDS = int(os.getenv('SECURE_HSTS_SECONDS', 31536000))
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-    SECURE_HSTS_PRELOAD = True
-    SECURE_SSL_REDIRECT = os.getenv('SECURE_SSL_REDIRECT', 'False').lower() in ('true', '1', 't')
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = os.getenv('SECURE_HSTS_SUBDOMAINS', 'True').lower() in ('true', '1', 't')
+    SECURE_HSTS_PRELOAD = os.getenv('SECURE_HSTS_PRELOAD', 'True').lower() in ('true', '1', 't')
 else:
     # Development security defaults
     X_FRAME_OPTIONS = 'DENY'
     SECURE_CONTENT_TYPE_NOSNIFF = True
+    SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_SECURE = False
+    SECURE_SSL_REDIRECT = False
+    SECURE_HSTS_SECONDS = 0
+
+# Production Logging Configuration
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '[{asctime}] {levelname} [{name}:{lineno}] {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': os.getenv('LOG_LEVEL', 'INFO'),
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': os.getenv('DJANGO_LOG_LEVEL', 'INFO'),
+            'propagate': False,
+        },
+        'django.security': {
+            'handlers': ['console'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+        'django.request': {
+            'handlers': ['console'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+    },
+}
+
 

@@ -546,6 +546,28 @@ class SeedDemoDataCommandTests(TestCase):
         call_command('seed_demo_data', days=1, confirm_production=True, stdout=out)
         self.assertTrue(User.objects.filter(username='admin_rajesh').exists())
 
+    @override_settings(DEBUG=False)
+    def test_create_dev_users_production_guard(self):
+        """When DEBUG is False, create_dev_users is blocked without --confirm-production."""
+        out = StringIO()
+        with self.assertRaises(CommandError):
+            call_command('create_dev_users', stdout=out)
+
+        # Providing confirm_production succeeds
+        call_command('create_dev_users', confirm_production=True, stdout=out)
+        self.assertTrue(User.objects.filter(username='admin').exists())
+
+    @override_settings(DEBUG=False)
+    def test_seed_sample_data_production_guard(self):
+        """When DEBUG is False, seed_sample_data is blocked without --confirm-production."""
+        out = StringIO()
+        with self.assertRaises(CommandError):
+            call_command('seed_sample_data', stdout=out)
+
+        # Providing confirm_production succeeds
+        call_command('seed_sample_data', confirm_production=True, stdout=out)
+        self.assertTrue(Student.objects.filter(student_id='STU-10A-001').exists())
+
 
 class SecurityAndQAAuditTests(TestCase):
     def setUp(self):

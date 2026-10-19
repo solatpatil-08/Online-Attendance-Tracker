@@ -1,11 +1,29 @@
-from django.core.management.base import BaseCommand
+from django.conf import settings
+from django.core.management.base import BaseCommand, CommandError
 from accounts.models import User, TeacherProfile
 
 
 class Command(BaseCommand):
     help = 'Creates default development users (Admin and Teacher) for quick local testing'
 
+    def add_arguments(self, parser):
+        parser.add_argument(
+            '--confirm-production',
+            action='store_true',
+            help='Explicit override flag required if executing while settings.DEBUG is False.'
+        )
+
     def handle(self, *args, **options):
+        is_debug = getattr(settings, 'DEBUG', False)
+        confirm_prod = options.get('confirm_production', False)
+        if not is_debug and not confirm_prod:
+            raise CommandError(
+                "Execution aborted: Django settings.DEBUG is False. "
+                "Creating development accounts with hardcoded weak credentials (admin123/teacher123) "
+                "is prohibited in production environments. Use 'python manage.py createsuperuser' "
+                "for production administrator provisioning, or provide --confirm-production to override."
+            )
+
         # Admin User
         admin_user, created_admin = User.objects.get_or_create(
             username='admin',

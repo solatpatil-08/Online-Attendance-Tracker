@@ -1,5 +1,6 @@
 import datetime
-from django.core.management.base import BaseCommand
+from django.conf import settings
+from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 from accounts.models import User, TeacherProfile
 from academics.models import AcademicYear, Classroom, Subject, ClassSubjectAssignment
@@ -10,8 +11,25 @@ from attendance.models import AttendanceSession, Attendance
 class Command(BaseCommand):
     help = 'Seeds sample academic structure, students, and attendance data for local testing'
 
+    def add_arguments(self, parser):
+        parser.add_argument(
+            '--confirm-production',
+            action='store_true',
+            help='Explicit override flag required if executing while settings.DEBUG is False.'
+        )
+
     def handle(self, *args, **options):
+        is_debug = getattr(settings, 'DEBUG', False)
+        confirm_prod = options.get('confirm_production', False)
+        if not is_debug and not confirm_prod:
+            raise CommandError(
+                "Execution aborted: Django settings.DEBUG is False. "
+                "Seeding sample test data into a production database is prohibited. "
+                "Provide the --confirm-production flag if this is an intentional staging drill."
+            )
+
         self.stdout.write('Seeding initial academic dataset...')
+
 
         # 1. Teachers and Admins
         teacher, _ = User.objects.get_or_create(

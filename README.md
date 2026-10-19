@@ -25,6 +25,7 @@ A secure, modern, role-based web application built with **Django** and **Bootstr
 - [Demo Data Setup](#-demo-data-setup)
 - [Creating an Administrator Account](#-creating-an-administrator-account)
 - [Running the Application](#-running-the-application)
+- [Production Deployment](#-production-deployment)
 - [Testing Instructions](#-testing-instructions)
 - [Screenshots & Visual Layouts](#-screenshots--visual-layouts)
 - [Security Considerations](#-security-considerations)
@@ -348,7 +349,7 @@ Follow the prompts to enter a username, email, and secure password.
 
 ---
 
-## 🖥️ Running the Application
+## 🖥️ Running the Application (Local Development)
 
 Start the Django development server:
 
@@ -362,9 +363,57 @@ Open your browser and navigate to:
 
 ---
 
+## 🚀 Production Deployment
+
+For complete, step-by-step production setup, systemd unit definitions, Nginx SSL configuration, and environment variable references, refer to the [Production Deployment Guide](DEPLOYMENT.md).
+
+### Quick Production Deployment Summary:
+
+1. **Configure Production Environment (`.env`):**
+   ```ini
+   DEBUG=False
+   SECRET_KEY=your-cryptographically-strong-secret-key
+   ALLOWED_HOSTS=attendance.yourinstitution.edu
+   CSRF_TRUSTED_ORIGINS=https://attendance.yourinstitution.edu
+   DATABASE_URL=postgresql://attendance_user:password@localhost:5432/attendance_db
+   SECURE_SSL_REDIRECT=True
+   USE_X_FORWARDED_PROTO=True
+   ```
+
+2. **Install Production Requirements & Drivers:**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. **Apply Database Migrations:**
+   ```bash
+   python manage.py migrate
+   ```
+
+4. **Collect and Compress Static Files (WhiteNoise):**
+   ```bash
+   python manage.py collectstatic --noinput
+   ```
+
+5. **Create Initial Administrator:**
+   ```bash
+   python manage.py createsuperuser
+   ```
+
+6. **Verify Security Deployment Checks:**
+   ```bash
+   python manage.py check --deploy
+   ```
+
+7. **Launch Production WSGI Server:**
+   - **Linux:** `gunicorn --workers 4 --bind 127.0.0.1:8000 config.wsgi:application`
+   - **Windows:** `waitress-serve --listen=127.0.0.1:8000 config.wsgi:application`
+
+---
+
 ## 🧪 Testing Instructions
 
-The project features a comprehensive test suite of **146 automated tests** covering authentication, model constraints, role permissions, attendance calculations, CSV sanitization, and open-redirect defenses.
+The project features a comprehensive test suite of **148 automated tests** covering authentication, model constraints, role permissions, attendance calculations, CSV sanitization, production guards, and open-redirect defenses.
 
 ### Run All Tests:
 ```bash
