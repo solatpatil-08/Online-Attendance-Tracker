@@ -1,30 +1,100 @@
-# Python
+# ==============================================================================
+# Byte-compiled / Optimized / DLL files
+# ==============================================================================
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
-env/
-venv/
-.venv/
-ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
 
-# Django
+# ==============================================================================
+# Virtual Environments
+# ==============================================================================
+.venv/
+venv/
+ENV/
+env/
+env.bak/
+venv.bak/
+
+# ==============================================================================
+# Django Local Configurations & Generated Files
+# ==============================================================================
 *.log
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
-media/
+db.sqlite3-shm
+db.sqlite3-wal
+test_db.sqlite3
 staticfiles/
+media/
+mediafiles/
 
-# Environment variables
+# ==============================================================================
+# Environment Variables & Secret Credentials
+# ==============================================================================
 .env
+.env.*
+!.env.example
+*.env
+*.key
+*.pem
+credentials.json
 
-# IDE & OS
+# ==============================================================================
+# Unit Test & Code Coverage Artifacts
+# ==============================================================================
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# ==============================================================================
+# IDEs, Editors & Antigravity IDE Artifacts
+# ==============================================================================
 .vscode/
 .idea/
 *.swp
 *.swo
+*~
+.agents/
+.gemini/
+scratch/
+*.sublime-workspace
+*.sublime-project
+
+# ==============================================================================
+# Operating System Files
+# ==============================================================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
 Desktop.ini
-.DS_Store
