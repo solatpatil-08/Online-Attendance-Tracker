@@ -20,6 +20,8 @@
     {% block extra_css %}{% endblock %}
 </head>
 <body class="{% if user.is_authenticated %}app-body{% else %}auth-body d-flex flex-column min-vh-100{% endif %}">
+    <!-- Accessible Skip to Content Link -->
+    <a href="#main-content" class="skip-link">Skip to main content</a>
 
 {% if user.is_authenticated %}
     <!-- Mobile Sidebar Backdrop Overlay -->
@@ -47,7 +49,7 @@
     </header>
 {% endif %}
 
-    <main class="{% if user.is_authenticated %}app-content flex-grow-1{% else %}flex-grow-1 d-flex align-items-center justify-content-center py-4{% endif %}">
+    <main id="main-content" tabindex="-1" class="{% if user.is_authenticated %}app-content flex-grow-1{% else %}flex-grow-1 d-flex align-items-center justify-content-center py-4{% endif %}">
         <div class="container{% if user.is_authenticated %}-fluid px-3 px-md-4 py-4{% endif %}">
             <!-- Global Notification Messages -->
             {% if messages %}
@@ -55,13 +57,13 @@
                     {% for message in messages %}
                         <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show d-flex align-items-center shadow-xs border-0" role="alert">
                             {% if message.tags == 'success' %}
-                                <i class="bi bi-check-circle-fill text-success me-2 fs-5"></i>
+                                <i class="bi bi-check-circle-fill text-success me-2 fs-5" aria-hidden="true"></i>
                             {% elif message.tags == 'danger' or message.tags == 'error' %}
-                                <i class="bi bi-exclamation-triangle-fill text-danger me-2 fs-5"></i>
+                                <i class="bi bi-exclamation-triangle-fill text-danger me-2 fs-5" aria-hidden="true"></i>
                             {% elif message.tags == 'warning' %}
-                                <i class="bi bi-exclamation-circle-fill text-warning me-2 fs-5"></i>
+                                <i class="bi bi-exclamation-circle-fill text-warning me-2 fs-5" aria-hidden="true"></i>
                             {% else %}
-                                <i class="bi bi-info-circle-fill text-primary me-2 fs-5"></i>
+                                <i class="bi bi-info-circle-fill text-primary me-2 fs-5" aria-hidden="true"></i>
                             {% endif %}
                             <div class="flex-grow-1">{{ message }}</div>
                             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>

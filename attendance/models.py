@@ -74,10 +74,38 @@ class AttendanceSession(models.Model):
     def record_bulk_attendance(cls, classroom, subject, date, recorded_by, student_records, notes=""):
         """
         Atomically creates or updates an attendance session and its corresponding student records.
-        Ensures complete ACID transaction consistency.
+        Ensures complete ACID transaction consistency and enforces server-side assignment validation.
+        Rolls back the entire transaction if any student record or date validation fails.
         
         student_records: list of dicts [{'student': student_instance, 'status': 'PRESENT', 'remarks': '...'}]
         """
+        if not recorded_by.is_active:
+            raise ValidationError("Inactive users cannot record attendance.")
+
+        if recorded_by.role == 'TEACHER' and not recorded_by.can_mark_attendance(classroom, subject):
+            raise ValidationError(
+                f"Teacher '{recorded_by.get_full_name() or recorded_by.username}' is not assigned to take attendance for {classroom.display_name} - {subject.name}."
+            )
+
+        if not classroom.is_active:
+            raise ValidationError("Attendance cannot be recorded for an inactive classroom.")
+
+        if not subject.is_active:
+            raise ValidationError("Attendance cannot be recorded for an inactive subject.")
+
+        today = timezone.localdate()
+        if date > today:
+            raise ValidationError("Attendance date cannot be in the future.")
+
+        max_backdated_days = getattr(settings, 'MAX_BACKDATED_ATTENDANCE_DAYS', 7)
+        if recorded_by.role == 'TEACHER' and (today - date).days > max_backdated_days:
+            raise ValidationError(
+                f"Attendance cannot be submitted or edited for dates older than {max_backdated_days} days ({date} exceeds limit)."
+            )
+
+        if not student_records:
+            raise ValidationError("No student attendance records were provided.")
+
         session, _ = cls.objects.update_or_create(
             classroom=classroom,
             subject=subject,
@@ -89,8 +117,25 @@ class AttendanceSession(models.Model):
         )
 
         for record in student_records:
-            student = record['student']
-            status = record.get('status', Attendance.Status.PRESENT)
+            student = record.get('student')
+            if not student:
+                raise ValidationError("Student instance is required for all attendance entries.")
+
+            if student.classroom_id != classroom.id:
+                raise ValidationError(
+                    f"Student '{student.full_name}' is enrolled in '{student.classroom}', not '{classroom}'."
+                )
+            if not student.is_active:
+                raise ValidationError(
+                    f"Cannot mark attendance for inactive student '{student.full_name}'."
+                )
+
+            status = record.get('status')
+            if not status or status not in Attendance.Status.values:
+                raise ValidationError(
+                    f"Invalid or missing attendance status '{status}' for student '{student.full_name}'. Every student must be explicitly marked."
+                )
+
             remarks = record.get('remarks', '')
 
             Attendance.objects.update_or_create(

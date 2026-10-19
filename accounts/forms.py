@@ -136,6 +136,11 @@ class TeacherCreationForm(forms.Form):
         required=False,
         widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. M.Sc, B.Ed'})
     )
+    phone_number = forms.CharField(
+        max_length=20,
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. +1 555-0199'})
+    )
     password = forms.CharField(
         min_length=8,
         widget=forms.PasswordInput(attrs={'class': 'form-control'})
@@ -180,6 +185,7 @@ class TeacherCreationForm(forms.Form):
             password=cd['password'],
             first_name=cd['first_name'],
             last_name=cd['last_name'],
+            phone_number=cd.get('phone_number', ''),
             role=User.Role.TEACHER,
             is_staff=True,
         )
@@ -190,4 +196,133 @@ class TeacherCreationForm(forms.Form):
             qualification=cd.get('qualification', '')
         )
         user.sync_role_group()
+        return user
+
+
+class TeacherAdminEditForm(forms.Form):
+    """
+    Administrative form for modifying an existing teacher's profile, credentials, and institutional status.
+    """
+    first_name = forms.CharField(
+        max_length=50,
+        widget=forms.TextInput(attrs={'class': 'form-control'})
+    )
+    last_name = forms.CharField(
+        max_length=50,
+        widget=forms.TextInput(attrs={'class': 'form-control'})
+    )
+    email = forms.EmailField(
+        widget=forms.EmailInput(attrs={'class': 'form-control'})
+    )
+    phone_number = forms.CharField(
+        max_length=20,
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. +1 555-0199'})
+    )
+    employee_id = forms.CharField(
+        max_length=50,
+        widget=forms.TextInput(attrs={'class': 'form-control'})
+    )
+    department = forms.CharField(
+        max_length=100,
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. Science, Mathematics'})
+    )
+    qualification = forms.CharField(
+        max_length=120,
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. Ph.D., M.Ed, B.Sc'})
+    )
+    is_active = forms.BooleanField(
+        required=False,
+        label="Account Active",
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
+    )
+    new_password = forms.CharField(
+        min_length=8,
+        required=False,
+        label="New Password (leave blank to keep unchanged)",
+        widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Leave blank to preserve current password'})
+    )
+    confirm_new_password = forms.CharField(
+        min_length=8,
+        required=False,
+        label="Confirm New Password",
+        widget=forms.PasswordInput(attrs={'class': 'form-control'})
+    )
+
+    def __init__(self, *args, teacher=None, **kwargs):
+        self.teacher = teacher
+        self.profile = getattr(teacher, 'teacher_profile', None) if teacher else None
+        
+        if teacher and not kwargs.get('initial'):
+            initial = {
+                'first_name': teacher.first_name,
+                'last_name': teacher.last_name,
+                'email': teacher.email,
+                'phone_number': teacher.phone_number or '',
+                'is_active': teacher.is_active,
+                'employee_id': self.profile.employee_id if self.profile else '',
+                'department': self.profile.department if self.profile else '',
+                'qualification': self.profile.qualification if self.profile else '',
+            }
+            kwargs['initial'] = initial
+        super().__init__(*args, **kwargs)
+
+    def clean_email(self):
+        email = self.cleaned_data['email'].strip()
+        qs = User.objects.filter(email__iexact=email)
+        if self.teacher:
+            qs = qs.exclude(pk=self.teacher.pk)
+        if qs.exists():
+            raise ValidationError("Another user with this email address already exists.")
+        return email
+
+    def clean_employee_id(self):
+        emp_id = self.cleaned_data['employee_id'].strip()
+        qs = TeacherProfile.objects.filter(employee_id__iexact=emp_id)
+        if self.profile:
+            qs = qs.exclude(pk=self.profile.pk)
+        if qs.exists():
+            raise ValidationError("Another teacher with this employee ID already exists.")
+        return emp_id
+
+    def clean(self):
+        cleaned_data = super().clean()
+        new_pwd = cleaned_data.get('new_password')
+        confirm_pwd = cleaned_data.get('confirm_new_password')
+
+        if new_pwd or confirm_pwd:
+            if new_pwd != confirm_pwd:
+                raise ValidationError({'confirm_new_password': "Passwords do not match."})
+        return cleaned_data
+
+    def save(self):
+        cd = self.cleaned_data
+        user = self.teacher
+        user.first_name = cd['first_name'].strip()
+        user.last_name = cd['last_name'].strip()
+        user.email = cd['email'].strip()
+        user.phone_number = cd.get('phone_number', '').strip()
+        user.is_active = cd.get('is_active', True)
+
+        if cd.get('new_password'):
+            user.set_password(cd['new_password'])
+
+        user.save()
+
+        # Update or create teacher profile
+        if self.profile:
+            self.profile.employee_id = cd['employee_id'].strip()
+            self.profile.department = cd.get('department', '').strip()
+            self.profile.qualification = cd.get('qualification', '').strip()
+            self.profile.save()
+        else:
+            TeacherProfile.objects.create(
+                user=user,
+                employee_id=cd['employee_id'].strip(),
+                department=cd.get('department', '').strip(),
+                qualification=cd.get('qualification', '').strip()
+            )
+
         return user

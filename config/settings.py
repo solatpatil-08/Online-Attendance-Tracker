@@ -174,4 +174,9 @@ MESSAGE_TAGS = {
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
+# Attendance Business Rules Configuration
+# Teachers cannot submit or edit attendance older than this many calendar days in the past.
+# Administrators can override this restriction when necessary.
+MAX_BACKDATED_ATTENDANCE_DAYS = int(os.getenv('MAX_BACKDATED_ATTENDANCE_DAYS', 7))
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

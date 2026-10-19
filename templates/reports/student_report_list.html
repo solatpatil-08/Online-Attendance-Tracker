@@ -1,0 +1,231 @@
+{% extends 'base.html' %}
+
+{% block title %}Student Attendance Reports - Online Attendance Tracking System{% endblock %}
+
+{% block content %}
+<!-- Print Header (Visible only during printing) -->
+<div class="print-header d-none">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h4 class="fw-bold mb-0">AttendanceHub - Student Attendance Summary Report</h4>
+            <small class="text-muted">Generated on {% now "F j, Y, H:i" %}</small>
+        </div>
+        <div class="text-end">
+            <small class="fw-semibold">Student Dossier Registry</small>
+        </div>
+    </div>
+</div>
+
+<!-- Page Top Actions Header -->
+<div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-4 no-print">
+    <div>
+        <h2 class="fw-bold mb-1">Student Attendance Reports</h2>
+        <p class="text-muted small mb-0">
+            Track individual student attendance rates, monitor student academic health, and view detailed session dossiers.
+        </p>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+        <button type="button" class="btn btn-outline-secondary btn-sm shadow-xs" onclick="window.print()">
+            <i class="bi bi-printer me-1"></i> Print
+        </button>
+        <a href="{% url 'attendance:attendance_list' %}" class="btn btn-outline-primary btn-sm shadow-xs">
+            <i class="bi bi-clock-history me-1"></i> Full Log History
+        </a>
+    </div>
+</div>
+
+<!-- Search & Filter Card -->
+<div class="card card-modern mb-4 no-print">
+    <div class="card-modern-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-funnel-fill text-primary me-2"></i> Filter Student Reports</span>
+        {% if selected_class_id or selected_section or search_query or start_date or end_date %}
+            <span class="badge bg-primary-subtle text-primary">Filters Active</span>
+        {% endif %}
+    </div>
+    <div class="card-body p-3">
+        <form method="get" class="row g-2 align-items-end">
+            <!-- Search Query -->
+            <div class="col-12 col-md-3">
+                <label class="form-label smaller fw-semibold text-muted mb-1">Search Student</label>
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-light text-muted"><i class="bi bi-search"></i></span>
+                    <input type="text" name="q" class="form-control" value="{{ search_query }}" placeholder="Name, ID, or Roll...">
+                </div>
+            </div>
+
+            <!-- Class Filter -->
+            <div class="col-12 col-sm-6 col-md-3">
+                <label class="form-label smaller fw-semibold text-muted mb-1">Classroom</label>
+                <select name="class_id" class="form-select form-select-sm">
+                    <option value="">All Classrooms</option>
+                    {% for c in classrooms %}
+                        <option value="{{ c.pk }}" {% if selected_class_id == c.pk|stringformat:"s" %}selected{% endif %}>
+                            {{ c.display_name }} ({{ c.academic_year.name }})
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Section Filter -->
+            <div class="col-12 col-sm-6 col-md-2">
+                <label class="form-label smaller fw-semibold text-muted mb-1">Section</label>
+                <select name="section" class="form-select form-select-sm">
+                    <option value="">All Sections</option>
+                    {% for s in sections %}
+                        <option value="{{ s }}" {% if selected_section == s %}selected{% endif %}>Section {{ s }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Date Range From -->
+            <div class="col-12 col-sm-6 col-md-2">
+                <label class="form-label smaller fw-semibold text-muted mb-1">From Date</label>
+                <input type="date" name="start_date" class="form-control form-control-sm" value="{{ start_date }}">
+            </div>
+
+            <!-- Date Range To -->
+            <div class="col-12 col-sm-6 col-md-2">
+                <label class="form-label smaller fw-semibold text-muted mb-1">To Date</label>
+                <input type="date" name="end_date" class="form-control form-control-sm" value="{{ end_date }}">
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="col-12 d-flex justify-content-end gap-2 mt-2">
+                <a href="{% url 'attendance:student_report_list' %}" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-x-circle me-1"></i> Clear
+                </a>
+                <button type="submit" class="btn btn-primary btn-sm px-4">
+                    <i class="bi bi-funnel me-1"></i> Apply Filters
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Attendance Formula Callout Notice -->
+<div class="alert alert-info bg-info-subtle border-info-subtle shadow-xs mb-4 d-flex align-items-start gap-3">
+    <i class="bi bi-info-circle-fill text-info fs-4 mt-1"></i>
+    <div class="small">
+        <span class="fw-bold d-block text-dark mb-1">Attendance Percentage Formula & Enrollment Scoping</span>
+        <span class="text-secondary">
+            Formula: <code>Attendance % = (Present Sessions + Late Arrivals) / Total Applicable Sessions &times; 100%</code>.
+            Only attendance sessions recorded <strong>on or after</strong> the student's official enrollment date are counted as applicable sessions.
+            Sessions conducted prior to a student's enrollment date are strictly excluded.
+        </span>
+    </div>
+</div>
+
+<!-- Students Summary Table -->
+<div class="card card-modern">
+    <div class="card-modern-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+        <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-people-fill text-primary"></i>
+            <span class="fw-bold">Enrolled Students Overview</span>
+            <span class="badge bg-light text-dark border">{{ paginator.count|default:student_summaries|length }} Students</span>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        {% if student_summaries %}
+            <div class="table-responsive">
+                <table class="table table-custom table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Student ID</th>
+                            <th>Student Name</th>
+                            <th>Class & Section</th>
+                            <th>Enrollment Date</th>
+                            <th>Applicable Sessions</th>
+                            <th>Present</th>
+                            <th>Late</th>
+                            <th>Absent</th>
+                            <th>Excused</th>
+                            <th>Attendance Rate</th>
+                            <th>Academic Health</th>
+                            <th class="no-print text-end">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in student_summaries %}
+                            <tr>
+                                <td>
+                                    <span class="badge bg-light text-secondary border font-monospace">
+                                        {{ item.student.student_id }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <a href="{% url 'attendance:student_report_detail' item.student.pk %}" class="fw-semibold text-dark text-decoration-none">
+                                        {{ item.student.full_name }}
+                                    </a>
+                                    {% if item.student.roll_number %}
+                                        <small class="text-muted d-block smaller">Roll #{{ item.student.roll_number }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-light text-dark border">{{ item.student.classroom.display_name }}</span>
+                                </td>
+                                <td>
+                                    <span class="small text-muted">{{ item.student.enrollment_date|date:"M j, Y" }}</span>
+                                </td>
+                                <td>
+                                    <span class="fw-bold text-dark">{{ item.total_applicable }}</span>
+                                </td>
+                                <td class="text-success fw-semibold">{{ item.present }}</td>
+                                <td class="text-warning fw-semibold">{{ item.late }}</td>
+                                <td class="text-danger fw-semibold">{{ item.absent }}</td>
+                                <td class="text-info fw-semibold">{{ item.excused }}</td>
+                                <td>
+                                    {% if item.percentage is not None %}
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="fw-bold small {% if item.percentage >= 85 %}text-success{% elif item.percentage >= 70 %}text-warning{% else %}text-danger{% endif %}">
+                                                {{ item.percentage }}%
+                                            </span>
+                                            <div class="progress progress-thin flex-grow-1" style="min-width: 60px;">
+                                                <div class="progress-bar {% if item.percentage >= 85 %}bg-success{% elif item.percentage >= 70 %}bg-warning{% else %}bg-danger{% endif %}"
+                                                     style="width: {{ item.percentage }}%;">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    {% else %}
+                                        <span class="text-muted small">No logs yet</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if item.health == 'success' %}
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                                            <i class="bi bi-check-circle-fill me-1"></i> Good
+                                        </span>
+                                    {% elif item.health == 'warning' %}
+                                        <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1">
+                                            <i class="bi bi-exclamation-circle-fill me-1"></i> Warning
+                                        </span>
+                                    {% elif item.health == 'danger' %}
+                                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1">
+                                            <i class="bi bi-shield-exclamation me-1"></i> At Risk
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-secondary-subtle text-secondary px-2 py-1">No Data</span>
+                                    {% endif %}
+                                </td>
+                                <td class="no-print text-end">
+                                    <a href="{% url 'attendance:student_report_detail' item.student.pk %}" class="btn btn-primary btn-sm py-0 px-2 smaller">
+                                        <i class="bi bi-file-earmark-person me-1"></i> Dossier
+                                    </a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination Bar -->
+            {% include 'includes/pagination.html' with entity_name='students' %}
+        {% else %}
+            <div class="text-center text-muted py-5">
+                <i class="bi bi-people fs-1 d-block mb-3 text-secondary"></i>
+                <h5 class="fw-bold">No Students Found</h5>
+                <p class="small text-muted mb-0">No enrolled students match your active filter parameters.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

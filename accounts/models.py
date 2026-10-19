@@ -78,11 +78,15 @@ class User(AbstractUser):
         """
         Check if user can record or update attendance.
         If classroom and subject are provided, teachers must be assigned to that class-subject.
+        Inactive users cannot mark attendance.
         """
+        if not self.is_active:
+            return False
+
         if self.is_administrator:
             return True
 
-        if not (self.is_teacher_user and (self.has_perm('attendance.can_mark_attendance') or self.has_perm('attendance.add_attendance'))):
+        if not self.is_teacher_user:
             return False
 
         if classroom is not None and subject is not None:

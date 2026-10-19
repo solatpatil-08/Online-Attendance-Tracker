@@ -1,8 +1,8 @@
-<aside class="sidebar-wrapper" id="sidebarNav">
+<aside class="sidebar-wrapper" id="sidebarNav" aria-label="Main Navigation">
     <!-- Sidebar Brand -->
     <div class="sidebar-brand d-flex align-items-center justify-content-between px-3 py-3">
         <a href="{% url 'dashboard:index' %}" class="d-flex align-items-center text-decoration-none">
-            <span class="sidebar-logo-badge me-2">
+            <span class="sidebar-logo-badge me-2" aria-hidden="true">
                 <i class="bi bi-calendar-check-fill"></i>
             </span>
             <div class="d-flex flex-column">
@@ -11,7 +11,7 @@
             </div>
         </a>
         <button class="btn btn-sm btn-link text-white-50 d-lg-none p-0" type="button" id="sidebarCloseBtn" aria-label="Close sidebar">
-            <i class="bi bi-x-lg fs-5"></i>
+            <i class="bi bi-x-lg fs-5" aria-hidden="true"></i>
         </button>
     </div>
 
@@ -20,8 +20,10 @@
         <div class="sidebar-section-title px-3 pt-2 pb-1">Main</div>
         <ul class="sidebar-nav list-unstyled mb-3">
             <li class="sidebar-nav-item">
-                <a class="sidebar-nav-link {% if request.resolver_match.app_name == 'dashboard' %}active{% endif %}" href="{% url 'dashboard:index' %}">
-                    <i class="bi bi-speedometer2"></i>
+                <a class="sidebar-nav-link {% if request.resolver_match.app_name == 'dashboard' %}active{% endif %}" 
+                   href="{% url 'dashboard:index' %}"
+                   {% if request.resolver_match.app_name == 'dashboard' %}aria-current="page"{% endif %}>
+                    <i class="bi bi-speedometer2" aria-hidden="true"></i>
                     <span>Dashboard</span>
                 </a>
             </li>
@@ -30,28 +32,44 @@
         <div class="sidebar-section-title px-3 pt-2 pb-1">Academic Management</div>
         <ul class="sidebar-nav list-unstyled mb-3">
             <li class="sidebar-nav-item">
-                <a class="sidebar-nav-link {% if request.resolver_match.app_name == 'academics' and 'classroom' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'academics:classroom_list' %}">
-                    <i class="bi bi-mortarboard"></i>
+                <a class="sidebar-nav-link {% if request.resolver_match.app_name == 'academics' and 'classroom' in request.resolver_match.url_name %}active{% endif %}" 
+                   href="{% url 'academics:classroom_list' %}"
+                   {% if request.resolver_match.app_name == 'academics' and 'classroom' in request.resolver_match.url_name %}aria-current="page"{% endif %}>
+                    <i class="bi bi-mortarboard" aria-hidden="true"></i>
                     <span>Classes & Sections</span>
                 </a>
             </li>
             <li class="sidebar-nav-item">
-                <a class="sidebar-nav-link {% if request.resolver_match.app_name == 'academics' and 'subject' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'academics:subject_list' %}">
-                    <i class="bi bi-book-half"></i>
+                <a class="sidebar-nav-link {% if request.resolver_match.app_name == 'academics' and 'subject' in request.resolver_match.url_name %}active{% endif %}" 
+                   href="{% url 'academics:subject_list' %}"
+                   {% if request.resolver_match.app_name == 'academics' and 'subject' in request.resolver_match.url_name %}aria-current="page"{% endif %}>
+                    <i class="bi bi-book-half" aria-hidden="true"></i>
                     <span>Subjects</span>
                 </a>
             </li>
             <li class="sidebar-nav-item">
-                <a class="sidebar-nav-link {% if request.resolver_match.app_name == 'students' %}active{% endif %}" href="{% url 'students:student_list' %}">
-                    <i class="bi bi-people-fill"></i>
+                <a class="sidebar-nav-link {% if request.resolver_match.app_name == 'students' %}active{% endif %}" 
+                   href="{% url 'students:student_list' %}"
+                   {% if request.resolver_match.app_name == 'students' %}aria-current="page"{% endif %}>
+                    <i class="bi bi-people-fill" aria-hidden="true"></i>
                     <span>Students</span>
                 </a>
             </li>
             {% if user.is_administrator %}
             <li class="sidebar-nav-item">
-                <a class="sidebar-nav-link {% if request.resolver_match.app_name == 'accounts' and 'teacher' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'accounts:teacher_list' %}">
-                    <i class="bi bi-person-video3"></i>
+                <a class="sidebar-nav-link {% if request.resolver_match.app_name == 'accounts' and 'teacher' in request.resolver_match.url_name %}active{% endif %}" 
+                   href="{% url 'accounts:teacher_list' %}"
+                   {% if request.resolver_match.app_name == 'accounts' and 'teacher' in request.resolver_match.url_name %}aria-current="page"{% endif %}>
+                    <i class="bi bi-person-video3" aria-hidden="true"></i>
                     <span>Faculty & Teachers</span>
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link {% if request.resolver_match.app_name == 'academics' and 'assignment' in request.resolver_match.url_name %}active{% endif %}" 
+                   href="{% url 'academics:assignment_list' %}"
+                   {% if request.resolver_match.app_name == 'academics' and 'assignment' in request.resolver_match.url_name %}aria-current="page"{% endif %}>
+                    <i class="bi bi-diagram-3-fill" aria-hidden="true"></i>
+                    <span>Teaching Allocations</span>
                 </a>
             </li>
             {% endif %}
@@ -60,16 +78,36 @@
         <div class="sidebar-section-title px-3 pt-2 pb-1">Attendance & Logs</div>
         <ul class="sidebar-nav list-unstyled mb-3">
             <li class="sidebar-nav-item">
-                <a class="sidebar-nav-link {% if request.resolver_match.app_name == 'attendance' and request.resolver_match.url_name == 'attendance_list' %}active{% endif %}" href="{% url 'attendance:attendance_list' %}">
-                    <i class="bi bi-clipboard-check-fill"></i>
+                <a class="sidebar-nav-link {% if request.resolver_match.app_name == 'attendance' and request.resolver_match.url_name == 'take_attendance' %}active{% endif %}" 
+                   href="{% url 'attendance:take_attendance' %}"
+                   {% if request.resolver_match.app_name == 'attendance' and request.resolver_match.url_name == 'take_attendance' %}aria-current="page"{% endif %}>
+                    <i class="bi bi-pencil-square" aria-hidden="true"></i>
+                    <span>Take Attendance</span>
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link {% if request.resolver_match.app_name == 'attendance' and request.resolver_match.url_name == 'attendance_list' %}active{% endif %}" 
+                   href="{% url 'attendance:attendance_list' %}"
+                   {% if request.resolver_match.app_name == 'attendance' and request.resolver_match.url_name == 'attendance_list' %}aria-current="page"{% endif %}>
+                    <i class="bi bi-clipboard-check-fill" aria-hidden="true"></i>
                     <span>Attendance Records</span>
                 </a>
             </li>
             {% if user.can_view_reports %}
             <li class="sidebar-nav-item">
-                <a class="sidebar-nav-link {% if request.resolver_match.app_name == 'attendance' and request.resolver_match.url_name == 'reports' %}active{% endif %}" href="{% url 'attendance:reports' %}">
-                    <i class="bi bi-bar-chart-line-fill"></i>
-                    <span>Reports & Analytics</span>
+                <a class="sidebar-nav-link {% if request.resolver_match.app_name == 'attendance' and request.resolver_match.url_name == 'reports' %}active{% endif %}" 
+                   href="{% url 'attendance:reports' %}"
+                   {% if request.resolver_match.app_name == 'attendance' and request.resolver_match.url_name == 'reports' %}aria-current="page"{% endif %}>
+                    <i class="bi bi-bar-chart-line-fill" aria-hidden="true"></i>
+                    <span>Class Reports</span>
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link {% if request.resolver_match.app_name == 'attendance' and 'student_report' in request.resolver_match.url_name %}active{% endif %}" 
+                   href="{% url 'attendance:student_report_list' %}"
+                   {% if request.resolver_match.app_name == 'attendance' and 'student_report' in request.resolver_match.url_name %}aria-current="page"{% endif %}>
+                    <i class="bi bi-person-lines-fill" aria-hidden="true"></i>
+                    <span>Student Reports</span>
                 </a>
             </li>
             {% endif %}
@@ -78,15 +116,17 @@
         <div class="sidebar-section-title px-3 pt-2 pb-1">System & User</div>
         <ul class="sidebar-nav list-unstyled mb-0">
             <li class="sidebar-nav-item">
-                <a class="sidebar-nav-link {% if request.resolver_match.app_name == 'accounts' and request.resolver_match.url_name == 'profile' %}active{% endif %}" href="{% url 'accounts:profile' %}">
-                    <i class="bi bi-person-circle"></i>
+                <a class="sidebar-nav-link {% if request.resolver_match.app_name == 'accounts' and request.resolver_match.url_name == 'profile' %}active{% endif %}" 
+                   href="{% url 'accounts:profile' %}"
+                   {% if request.resolver_match.app_name == 'accounts' and request.resolver_match.url_name == 'profile' %}aria-current="page"{% endif %}>
+                    <i class="bi bi-person-circle" aria-hidden="true"></i>
                     <span>My Profile</span>
                 </a>
             </li>
             {% if user.is_superuser %}
             <li class="sidebar-nav-item">
-                <a class="sidebar-nav-link" href="{% url 'admin:index' %}" target="_blank">
-                    <i class="bi bi-shield-lock-fill"></i>
+                <a class="sidebar-nav-link" href="{% url 'admin:index' %}" target="_blank" rel="noopener noreferrer">
+                    <i class="bi bi-shield-lock-fill" aria-hidden="true"></i>
                     <span>Django Admin</span>
                 </a>
             </li>
@@ -95,7 +135,7 @@
                 <form method="post" action="{% url 'accounts:logout' %}">
                     {% csrf_token %}
                     <button type="submit" class="sidebar-nav-link border-0 bg-transparent text-danger w-100 text-start">
-                        <i class="bi bi-box-arrow-right text-danger"></i>
+                        <i class="bi bi-box-arrow-right text-danger" aria-hidden="true"></i>
                         <span>Sign Out</span>
                     </button>
                 </form>

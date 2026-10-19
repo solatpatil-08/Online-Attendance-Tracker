@@ -1,0 +1,413 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ student.full_name }} - Attendance Dossier & Report{% endblock %}
+
+{% block content %}
+<!-- Print Header (Visible only during printing) -->
+<div class="print-header d-none">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h4 class="fw-bold mb-0">AttendanceHub - Official Student Attendance Dossier</h4>
+            <small class="text-muted">Student: {{ student.full_name }} ({{ student.student_id }}) | Class: {{ student.classroom.display_name }}</small>
+        </div>
+        <div class="text-end">
+            <small class="fw-semibold">Printed on {% now "F j, Y, H:i" %}</small>
+        </div>
+    </div>
+</div>
+
+<!-- Header with Navigation and Export Actions -->
+<div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-4 no-print">
+    <div class="d-flex align-items-center gap-3">
+        <a href="{% url 'attendance:student_report_list' %}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left me-1"></i> Student Reports
+        </a>
+        <div>
+            <h2 class="fw-bold mb-0">{{ student.full_name }}</h2>
+            <p class="text-muted small mb-0 font-monospace">
+                {{ student.student_id }} &bull; {{ student.classroom.display_name }} &bull; Enrolled: {{ student.enrollment_date|date:"F j, Y" }}
+            </p>
+        </div>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+        <button type="button" class="btn btn-outline-secondary btn-sm shadow-xs" onclick="window.print()">
+            <i class="bi bi-printer me-1"></i> Print Dossier
+        </button>
+        {% if user.can_export_attendance %}
+            <a href="{% url 'attendance:student_report_export_csv' student.pk %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}" class="btn btn-success btn-sm shadow-xs">
+                <i class="bi bi-file-earmark-spreadsheet me-1"></i> Export History CSV
+            </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Student Profile Info Bar -->
+<div class="card card-modern mb-4">
+    <div class="card-body p-3">
+        <div class="row g-3 align-items-center">
+            <div class="col-6 col-md-3">
+                <span class="text-muted smaller d-block">Classroom & Section</span>
+                <span class="fw-bold text-dark">{{ student.classroom.display_name }}</span>
+            </div>
+            <div class="col-6 col-md-2">
+                <span class="text-muted smaller d-block">Roll Number</span>
+                <span class="fw-bold text-dark">{% if student.roll_number %}#{{ student.roll_number }}{% else %}—{% endif %}</span>
+            </div>
+            <div class="col-6 col-md-3">
+                <span class="text-muted smaller d-block">Enrollment Date</span>
+                <span class="fw-bold text-dark">{{ student.enrollment_date|date:"M j, Y" }}</span>
+            </div>
+            <div class="col-6 col-md-4">
+                <span class="text-muted smaller d-block">Guardian Contact</span>
+                <span class="fw-bold text-dark">
+                    {% if student.guardian_name %}{{ student.guardian_name }}{% if student.guardian_phone %} ({{ student.guardian_phone }}){% endif %}{% else %}—{% endif %}
+                </span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Date Range Filter Bar -->
+<div class="card card-modern mb-4 no-print">
+    <div class="card-body p-3">
+        <form method="get" class="row g-2 align-items-center">
+            <div class="col-12 col-md-3">
+                <span class="fw-semibold small"><i class="bi bi-calendar-range text-primary me-1"></i> Filter Date Window:</span>
+            </div>
+            <div class="col-12 col-sm-6 col-md-3">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-light text-muted" id="labelStartDate">From</span>
+                    <input type="date" name="start_date" class="form-control" value="{{ start_date }}" aria-label="Start date" aria-describedby="labelStartDate">
+                </div>
+            </div>
+            <div class="col-12 col-sm-6 col-md-3">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-light text-muted" id="labelEndDate">To</span>
+                    <input type="date" name="end_date" class="form-control" value="{{ end_date }}" aria-label="End date" aria-describedby="labelEndDate">
+                </div>
+            </div>
+            <div class="col-12 col-md-3 d-flex gap-2">
+                <button type="submit" class="btn btn-primary btn-sm flex-grow-1">Filter</button>
+                <a href="{% url 'attendance:student_report_detail' student.pk %}" class="btn btn-outline-secondary btn-sm">Reset</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Explicit Formula Documentation Callout Notice -->
+<div class="alert alert-primary bg-primary-subtle border-primary-subtle shadow-xs mb-4">
+    <div class="d-flex align-items-start gap-3">
+        <i class="bi bi-calculator-fill text-primary fs-3 mt-1"></i>
+        <div>
+            <h6 class="fw-bold text-primary mb-1">Attendance Percentage Calculation Formula</h6>
+            <p class="mb-2 text-dark">
+                $$\text{Attendance Rate} = \frac{\text{Present Sessions} + \text{Late Arrivals}}{\text{Total Applicable Attendance Sessions}} \times 100\%$$
+            </p>
+            <div class="row g-2 text-secondary smaller">
+                <div class="col-md-6">
+                    <i class="bi bi-check2-circle text-primary me-1"></i>
+                    <strong>Enrollment Scoping:</strong> Sessions conducted prior to the student's official enrollment date ({{ student.enrollment_date|date:"F j, Y" }}) are <strong>strictly excluded</strong> from the denominator.
+                </div>
+                <div class="col-md-6">
+                    <i class="bi bi-check2-circle text-primary me-1"></i>
+                    <strong>Late Policy:</strong> Late arrivals are recognized as attended sessions and contribute to the attendance percentage.
+                </div>
+                <div class="col-md-6">
+                    <i class="bi bi-check2-circle text-primary me-1"></i>
+                    <strong>Excused Policy:</strong> Excused absences reflect documented medical or authorized institutional leaves.
+                </div>
+                <div class="col-md-6">
+                    <i class="bi bi-check2-circle text-primary me-1"></i>
+                    <strong>Absent Policy:</strong> Explicitly marked unexcused absences reduce the attendance rate.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Summary Metric Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="stat-card">
+            <div class="stat-card-header">
+                <span class="stat-label">Applicable Sessions</span>
+                <div class="stat-icon primary"><i class="bi bi-calendar-check"></i></div>
+            </div>
+            <div class="stat-value">{{ total_applicable }}</div>
+            <div class="stat-meta text-muted small">Since enrollment</div>
+        </div>
+    </div>
+
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="stat-card success">
+            <div class="stat-card-header">
+                <span class="stat-label">Present</span>
+                <div class="stat-icon success"><i class="bi bi-check-circle-fill"></i></div>
+            </div>
+            <div class="stat-value text-success">{{ present_count }}</div>
+            <div class="stat-meta text-success small">On-time attendances</div>
+        </div>
+    </div>
+
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="stat-card warning">
+            <div class="stat-card-header">
+                <span class="stat-label">Late</span>
+                <div class="stat-icon warning"><i class="bi bi-clock-history"></i></div>
+            </div>
+            <div class="stat-value text-warning">{{ late_count }}</div>
+            <div class="stat-meta text-warning small">Late arrivals</div>
+        </div>
+    </div>
+
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="stat-card danger">
+            <div class="stat-card-header">
+                <span class="stat-label">Absent</span>
+                <div class="stat-icon danger"><i class="bi bi-x-circle-fill"></i></div>
+            </div>
+            <div class="stat-value text-danger">{{ absent_count }}</div>
+            <div class="stat-meta text-danger small">Unexcused absences</div>
+        </div>
+    </div>
+
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="stat-card info">
+            <div class="stat-card-header">
+                <span class="stat-label">Excused</span>
+                <div class="stat-icon info"><i class="bi bi-shield-check"></i></div>
+            </div>
+            <div class="stat-value text-info">{{ excused_count }}</div>
+            <div class="stat-meta text-info small">Approved leaves</div>
+        </div>
+    </div>
+
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="stat-card {% if attendance_percentage >= 85 %}success{% elif attendance_percentage >= 70 %}warning{% else %}danger{% endif %}">
+            <div class="stat-card-header">
+                <span class="stat-label">Attendance Rate</span>
+                <div class="stat-icon {% if attendance_percentage >= 85 %}success{% elif attendance_percentage >= 70 %}warning{% else %}danger{% endif %}">
+                    <i class="bi bi-percent"></i>
+                </div>
+            </div>
+            <div class="stat-value">
+                {% if attendance_percentage is not None %}
+                    {{ attendance_percentage }}%
+                {% else %}
+                    <span class="text-muted fs-5">No Data</span>
+                {% endif %}
+            </div>
+            <div class="stat-meta text-muted small">
+                {% if attendance_percentage >= 85 %}Good Standing{% elif attendance_percentage >= 70 %}Needs Attention{% else %}At Academic Risk{% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Subject-Wise Breakdown and Doughnut Chart -->
+<div class="row g-3 mb-4">
+    <!-- Subject Breakdown Table -->
+    <div class="col-lg-8">
+        <div class="card card-modern h-100">
+            <div class="card-modern-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-book-half text-primary me-2"></i> Subject-Wise Attendance Breakdown</span>
+                <span class="badge bg-light text-dark border">{{ subject_breakdown|length }} Subjects</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-custom table-hover align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th scope="col">Subject</th>
+                                <th scope="col">Code</th>
+                                <th scope="col">Total</th>
+                                <th scope="col">Present</th>
+                                <th scope="col">Late</th>
+                                <th scope="col">Absent</th>
+                                <th scope="col">Excused</th>
+                                <th scope="col" class="text-end">Rate</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in subject_breakdown %}
+                                <tr>
+                                    <td class="fw-bold text-dark">{{ item.subject.name }}</td>
+                                    <td><code class="text-muted">{{ item.subject.code }}</code></td>
+                                    <td><span class="badge bg-light text-dark border">{{ item.total }}</span></td>
+                                    <td class="text-success fw-semibold">{{ item.present }}</td>
+                                    <td class="text-warning fw-semibold">{{ item.late }}</td>
+                                    <td class="text-danger fw-semibold">{{ item.absent }}</td>
+                                    <td class="text-info fw-semibold">{{ item.excused }}</td>
+                                    <td class="text-end">
+                                        {% if item.percentage is not None %}
+                                            <span class="badge {% if item.percentage >= 85 %}bg-success-subtle text-success{% elif item.percentage >= 70 %}bg-warning-subtle text-warning{% else %}bg-danger-subtle text-danger{% endif %} fs-6">
+                                                {{ item.percentage }}%
+                                            </span>
+                                        {% else %}
+                                            <span class="text-muted small">—</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="8" class="text-center py-4 text-muted">No subject attendance records found.</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Student Attendance Doughnut Chart -->
+    <div class="col-lg-4">
+        <div class="card card-modern h-100">
+            <div class="card-modern-header">
+                <span><i class="bi bi-pie-chart text-primary me-2"></i> Attendance Composition</span>
+            </div>
+            <div class="card-body d-flex flex-column justify-content-center p-3">
+                <div class="chart-wrapper" style="position: relative; height: 230px;">
+                    <canvas id="studentDoughnutChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Detailed Student Attendance History Log Table -->
+<div class="card card-modern mb-4">
+    <div class="card-modern-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+        <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-clock-history text-primary"></i>
+            <span class="fw-bold">Attendance History Log</span>
+            <span class="badge bg-light text-dark border">{{ total_history_count }} Sessions</span>
+        </div>
+        {% if user.can_export_attendance and total_history_count > 0 %}
+            <a href="{% url 'attendance:student_report_export_csv' student.pk %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}" class="btn btn-outline-success btn-sm no-print">
+                <i class="bi bi-download me-1"></i> Download History CSV
+            </a>
+        {% endif %}
+    </div>
+    <div class="card-body p-0">
+        {% if history_records %}
+            <div class="table-responsive">
+                <table class="table table-custom table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th scope="col">Date</th>
+                            <th scope="col">Class</th>
+                            <th scope="col">Subject</th>
+                            <th scope="col">Status</th>
+                            <th scope="col">Recorded By</th>
+                            <th scope="col">Remarks</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for record in history_records %}
+                            <tr>
+                                <td class="fw-semibold text-nowrap">
+                                    <i class="bi bi-calendar-event text-muted me-1"></i>
+                                    {{ record.date|date:"F j, Y" }}
+                                </td>
+                                <td>
+                                    <span class="badge bg-light text-dark border">{{ record.classroom.display_name }}</span>
+                                </td>
+                                <td>
+                                    <span class="fw-semibold">{{ record.subject.name }}</span>
+                                    <code class="text-muted smaller">({{ record.subject.code }})</code>
+                                </td>
+                                <td>
+                                    {% if record.status == 'PRESENT' %}
+                                        <span class="badge-status present">
+                                            <i class="bi bi-check-circle-fill me-1" aria-hidden="true"></i> Present
+                                        </span>
+                                    {% elif record.status == 'LATE' %}
+                                        <span class="badge-status late">
+                                            <i class="bi bi-clock-fill me-1" aria-hidden="true"></i> Late
+                                        </span>
+                                    {% elif record.status == 'ABSENT' %}
+                                        <span class="badge-status absent">
+                                            <i class="bi bi-x-circle-fill me-1" aria-hidden="true"></i> Absent
+                                        </span>
+                                    {% elif record.status == 'EXCUSED' %}
+                                        <span class="badge-status excused">
+                                            <i class="bi bi-shield-check me-1" aria-hidden="true"></i> Excused
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="small text-muted">
+                                        {{ record.recorded_by.get_full_name|default:record.recorded_by.username }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if record.remarks %}
+                                        <span class="small text-muted"><i class="bi bi-chat-left-text me-1 text-primary"></i>{{ record.remarks }}</span>
+                                    {% else %}
+                                        <span class="text-muted small">—</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center text-muted py-5">
+                <i class="bi bi-journal-x fs-1 d-block mb-3 text-secondary"></i>
+                <h5 class="fw-bold">No Attendance History Records Found</h5>
+                <p class="small text-muted mb-0">No attendance entries have been recorded for this student on or after their enrollment date.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ status_chart_data|json_script:"status-chart-data" }}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const el = document.getElementById('status-chart-data');
+    if (!el || typeof Chart === 'undefined') return;
+
+    try {
+        const statusData = JSON.parse(el.textContent);
+        const ctx = document.getElementById('studentDoughnutChart');
+        if (ctx) {
+            const hasData = statusData.data.some(v => v > 0);
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: statusData.labels,
+                    datasets: [{
+                        data: hasData ? statusData.data : [1],
+                        backgroundColor: hasData
+                            ? ['#15803d', '#b45309', '#0284c7', '#b91c1c']
+                            : ['#e2e8f0'],
+                        borderWidth: 2,
+                        borderColor: '#ffffff',
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { boxWidth: 12, font: { size: 11 } }
+                        },
+                        tooltip: {
+                            enabled: hasData
+                        }
+                    },
+                    cutout: '65%'
+                }
+            });
+        }
+    } catch (e) {
+        console.error("Failed to load student chart", e);
+    }
+});
+</script>
+{% endblock %}

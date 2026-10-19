@@ -2,59 +2,81 @@
 
 {% block title %}Teacher Dashboard - Online Attendance Tracking System{% endblock %}
 
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'dashboard:index' %}" class="text-decoration-none">Home</a></li>
+<li class="breadcrumb-item active" aria-current="page">Teacher Dashboard</li>
+{% endblock %}
+
 {% block content %}
-<div class="d-flex align-items-center justify-content-between mb-4">
+<div class="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3 mb-4">
     <div>
         <h2 class="fw-bold mb-1">Teacher Portal</h2>
         <p class="text-muted small mb-0">Record and review student attendance for your assigned classes and subjects.</p>
     </div>
     <div class="d-flex align-items-center gap-2">
         <span class="badge bg-light text-dark border px-3 py-2">
-            <i class="bi bi-calendar3 me-1 text-primary"></i> {{ today|date:"F j, Y" }}
+            <i class="bi bi-calendar3 me-1 text-primary" aria-hidden="true"></i> {{ today|date:"F j, Y" }}
         </span>
     </div>
 </div>
 
 <div class="row g-3 mb-4">
-    <div class="col-sm-6 col-md-4">
-        <div class="stat-card">
-            <div>
-                <div class="stat-label">Assigned Classes</div>
-                <div class="stat-value">{{ stats.assigned_classes }}</div>
+    <div class="col-12 col-sm-6 col-md-4">
+        <div class="stat-card primary">
+            <div class="stat-card-header">
+                <span class="stat-label">Assigned Classes</span>
+                <div class="stat-icon primary" aria-hidden="true">
+                    <i class="bi bi-mortarboard"></i>
+                </div>
             </div>
-            <div class="stat-icon primary">
-                <i class="bi bi-mortarboard"></i>
-            </div>
-        </div>
-    </div>
-    <div class="col-sm-6 col-md-4">
-        <div class="stat-card">
-            <div>
-                <div class="stat-label">Total Students</div>
-                <div class="stat-value">{{ stats.total_students }}</div>
-            </div>
-            <div class="stat-icon success">
-                <i class="bi bi-people"></i>
+            <div class="stat-value">{{ stats.assigned_classes }}</div>
+            <div class="stat-meta text-muted">
+                <i class="bi bi-check-circle text-primary" aria-hidden="true"></i>
+                <span>Active teaching allocations</span>
             </div>
         </div>
     </div>
-    <div class="col-sm-6 col-md-4">
-        <div class="stat-card">
-            <div>
-                <div class="stat-label">Attendance Recorded Today</div>
-                <div class="stat-value">{{ stats.today_attendance_count }}</div>
+    <div class="col-12 col-sm-6 col-md-4">
+        <div class="stat-card success">
+            <div class="stat-card-header">
+                <span class="stat-label">Total Students</span>
+                <div class="stat-icon success" aria-hidden="true">
+                    <i class="bi bi-people"></i>
+                </div>
             </div>
-            <div class="stat-icon warning">
-                <i class="bi bi-check2-square"></i>
+            <div class="stat-value text-success">{{ stats.total_students }}</div>
+            <div class="stat-meta text-muted">
+                <i class="bi bi-mortarboard text-success" aria-hidden="true"></i>
+                <span>Enrolled in your classes</span>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-sm-6 col-md-4">
+        <div class="stat-card warning">
+            <div class="stat-card-header">
+                <span class="stat-label">Attendance Recorded Today</span>
+                <div class="stat-icon warning" aria-hidden="true">
+                    <i class="bi bi-check2-square"></i>
+                </div>
+            </div>
+            <div class="stat-value text-warning">{{ stats.today_attendance_count }}</div>
+            <div class="stat-meta text-muted">
+                <i class="bi bi-clock-history text-warning" aria-hidden="true"></i>
+                <span>Sessions submitted today</span>
             </div>
         </div>
     </div>
 </div>
 
 <div class="card card-modern">
-    <div class="card-modern-header d-flex align-items-center justify-content-between">
-        <span><i class="bi bi-clock-history me-2 text-primary"></i> Assigned Classes & Subjects</span>
-        <span class="badge bg-primary-subtle text-primary">{{ assignments|length }} Active Allocations</span>
+    <div class="card-modern-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+        <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-clock-history text-primary" aria-hidden="true"></i>
+            <span class="fw-bold">Assigned Classes & Subjects</span>
+        </div>
+        <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
+            {{ assignments|length }} Active Allocations
+        </span>
     </div>
     <div class="card-body p-0">
         {% if assignments %}
@@ -62,22 +84,31 @@
                 <table class="table table-custom table-hover align-middle mb-0">
                     <thead>
                         <tr>
-                            <th>Class & Section</th>
-                            <th>Academic Year</th>
-                            <th>Subject</th>
-                            <th>Subject Code</th>
-                            <th class="text-end">Status</th>
+                            <th scope="col">Class & Section</th>
+                            <th scope="col">Academic Year</th>
+                            <th scope="col">Subject</th>
+                            <th scope="col">Subject Code</th>
+                            <th scope="col">Status</th>
+                            <th scope="col" class="text-end">Action</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for item in assignments %}
                             <tr>
-                                <td class="fw-semibold">{{ item.classroom.display_name }}</td>
-                                <td>{{ item.classroom.academic_year.name }}</td>
-                                <td>{{ item.subject.name }}</td>
+                                <td class="fw-semibold text-dark">{{ item.classroom.display_name }}</td>
+                                <td><span class="badge bg-light text-secondary border">{{ item.classroom.academic_year.name }}</span></td>
+                                <td class="fw-medium">{{ item.subject.name }}</td>
                                 <td><code>{{ item.subject.code }}</code></td>
+                                <td>
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                        <i class="bi bi-check-circle me-1" aria-hidden="true"></i> Active
+                                    </span>
+                                </td>
                                 <td class="text-end">
-                                    <span class="badge bg-success-subtle text-success">Active</span>
+                                    <a href="{% url 'attendance:take_attendance' %}?class_id={{ item.classroom.id }}&subject_id={{ item.subject.id }}" 
+                                       class="btn btn-sm btn-primary shadow-xs">
+                                        <i class="bi bi-pencil-square me-1" aria-hidden="true"></i> Take Attendance
+                                    </a>
                                 </td>
                             </tr>
                         {% endfor %}
@@ -85,11 +116,7 @@
                 </table>
             </div>
         {% else %}
-            <div class="text-center text-muted py-5 px-3">
-                <i class="bi bi-journal-x fs-1 d-block mb-3 text-secondary"></i>
-                <h5>No Teaching Allocations Assigned</h5>
-                <p class="small mb-0">The administrator will assign classes and subjects to your profile in Django Admin.</p>
-            </div>
+            {% include 'includes/empty_state.html' with icon='bi-mortarboard' title='No Teaching Allocations Assigned' message='You are not currently assigned to any classroom or subject. Please contact an institutional administrator to allocate classes.' %}
         {% endif %}
     </div>
 </div>

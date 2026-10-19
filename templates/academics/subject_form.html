@@ -1,33 +1,91 @@
 {% extends 'base.html' %}
-{% load crispy_forms_tags %}
 
-{% block title %}Create Subject - Online Attendance Tracking System{% endblock %}
+{% block title %}
+    {% if is_edit %}Edit {{ subject.name }} - Subject Management{% else %}Create Subject - Online Attendance Tracking System{% endif %}
+{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-lg-6">
         <div class="d-flex align-items-center justify-content-between mb-4">
             <div>
-                <h3 class="fw-bold mb-1">Create New Subject</h3>
-                <p class="text-muted small mb-0">Register a course title and unique curriculum code.</p>
+                <h3 class="fw-bold mb-1">
+                    {% if is_edit %}Edit Academic Subject{% else %}Define New Subject{% endif %}
+                </h3>
+                <p class="text-muted small mb-0">
+                    {% if is_edit %}
+                        Update subject title, unique course identifier code, and course overview.
+                    {% else %}
+                        Register a course title, unique course code, and curriculum description.
+                    {% endif %}
+                </p>
             </div>
-            <a href="{% url 'academics:subject_list' %}" class="btn btn-outline-secondary btn-sm">
-                <i class="bi bi-arrow-left me-1"></i> Back to Subjects
+            <a href="{% if is_edit %}{% url 'academics:subject_detail' subject.pk %}{% else %}{% url 'academics:subject_list' %}{% endif %}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i> Back
             </a>
         </div>
 
         <div class="card card-modern">
-            <div class="card-modern-header">
-                <span><i class="bi bi-book-half me-2 text-primary"></i> Subject Details</span>
+            <div class="card-modern-header d-flex align-items-center justify-content-between">
+                <span>
+                    <i class="bi {% if is_edit %}bi-pencil-square{% else %}bi-book-half{% endif %} me-2 text-primary"></i>
+                    {% if is_edit %}Subject Specifications{% else %}New Subject Details{% endif %}
+                </span>
+                {% if is_edit %}
+                    <span class="badge bg-light text-dark border font-monospace">{{ subject.code }}</span>
+                {% endif %}
             </div>
             <div class="card-body p-4">
                 <form method="post" novalidate>
                     {% csrf_token %}
-                    {{ form|crispy }}
-                    <div class="d-flex justify-content-end gap-2 pt-3 border-top mt-3">
-                        <a href="{% url 'academics:subject_list' %}" class="btn btn-light px-4">Cancel</a>
+
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger py-2 small mb-4">
+                            {% for error in form.non_field_errors %}
+                                <div><i class="bi bi-exclamation-circle-fill me-1"></i> {{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
+                    <div class="mb-3">
+                        <label for="{{ form.name.id_for_label }}" class="form-label fw-semibold small">Subject Name <span class="text-danger">*</span></label>
+                        {{ form.name }}
+                        {% if form.name.errors %}<div class="text-danger small mt-1">{{ form.name.errors.0 }}</div>{% endif %}
+                        <div class="form-text">e.g. Mathematics, Advanced Chemistry, English Literature.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.code.id_for_label }}" class="form-label fw-semibold small">Subject Code <span class="text-danger">*</span></label>
+                        {{ form.code }}
+                        {% if form.code.errors %}<div class="text-danger small mt-1">{{ form.code.errors.0 }}</div>{% endif %}
+                        <div class="form-text">Unique course code identifier (e.g. 'MATH-101', 'CHEM-202'). Must be unique across the institution.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.description.id_for_label }}" class="form-label fw-semibold small">Description / Syllabus Overview</label>
+                        {{ form.description }}
+                        {% if form.description.errors %}<div class="text-danger small mt-1">{{ form.description.errors.0 }}</div>{% endif %}
+                        <div class="form-text">Optional summary of course curriculum and syllabus expectations.</div>
+                    </div>
+
+                    <div class="mb-4">
+                        <div class="form-check form-switch">
+                            {{ form.is_active }}
+                            <label class="form-check-label fw-semibold small" for="{{ form.is_active.id_for_label }}">
+                                Active Curriculum Subject
+                            </label>
+                        </div>
+                        {% if form.is_active.errors %}<div class="text-danger small mt-1">{{ form.is_active.errors.0 }}</div>{% endif %}
+                        <div class="form-text">Inactive subjects cannot be assigned to new classes or recorded for attendance.</div>
+                    </div>
+
+                    <div class="d-flex flex-column flex-sm-row justify-content-end gap-2 pt-3 border-top">
+                        <a href="{% if is_edit %}{% url 'academics:subject_detail' subject.pk %}{% else %}{% url 'academics:subject_list' %}{% endif %}" class="btn btn-light px-4">
+                            Cancel
+                        </a>
                         <button type="submit" class="btn btn-primary px-4">
-                            <i class="bi bi-check-lg me-1"></i> Save Subject
+                            <i class="bi bi-check-lg me-1"></i>
+                            {% if is_edit %}Save Changes{% else %}Save Subject{% endif %}
                         </button>
                     </div>
                 </form>

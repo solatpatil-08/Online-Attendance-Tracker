@@ -106,6 +106,10 @@ class Classroom(models.Model):
             raise ValidationError({
                 'class_teacher': "Assigned class teacher must possess the 'TEACHER' role."
             })
+        if self.class_teacher and not self.class_teacher.is_active:
+            raise ValidationError({
+                'class_teacher': "Cannot assign an inactive teacher as class teacher."
+            })
 
     def save(self, *args, **kwargs):
         self.full_clean()
@@ -208,6 +212,10 @@ class ClassSubjectAssignment(models.Model):
         if self.teacher and self.teacher.role != 'TEACHER':
             raise ValidationError({
                 'teacher': "Only users with the 'TEACHER' role can be assigned as subject instructors."
+            })
+        if self.teacher and not self.teacher.is_active:
+            raise ValidationError({
+                'teacher': "Cannot assign an inactive teacher."
             })
         if self.classroom and not self.classroom.is_active:
             raise ValidationError({

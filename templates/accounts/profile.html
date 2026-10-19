@@ -2,79 +2,106 @@
 
 {% block title %}My Profile - Online Attendance Tracking System{% endblock %}
 
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'dashboard:index' %}" class="text-decoration-none">Home</a></li>
+<li class="breadcrumb-item active" aria-current="page">User Profile</li>
+{% endblock %}
+
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-lg-8">
-        <div class="d-flex align-items-center justify-content-between mb-4">
+        <div class="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3 mb-4">
             <div>
-                <h3 class="fw-bold mb-1">User Profile</h3>
-                <p class="text-muted small mb-0">Manage your personal credentials and role details</p>
+                <h2 class="fw-bold mb-1">User Profile</h2>
+                <p class="text-muted small mb-0">Manage your personal credentials, contact info, and role details</p>
             </div>
-            <a href="{% url 'dashboard:index' %}" class="btn btn-outline-secondary btn-sm">
-                <i class="bi bi-arrow-left me-1"></i> Back to Dashboard
+            <a href="{% url 'dashboard:index' %}" class="btn btn-outline-secondary btn-sm shadow-xs align-self-start align-self-sm-auto">
+                <i class="bi bi-arrow-left me-1" aria-hidden="true"></i> Back to Dashboard
             </a>
         </div>
 
         <div class="card card-modern mb-4">
-            <div class="card-modern-header d-flex align-items-center gap-3">
-                <div class="stat-icon primary">
+            <div class="card-modern-header d-flex flex-wrap align-items-center gap-3">
+                <div class="stat-icon primary" aria-hidden="true">
                     <i class="bi bi-person-badge"></i>
                 </div>
                 <div>
                     <h5 class="mb-0 fw-bold">{{ user.get_full_name|default:user.username }}</h5>
-                    <span class="badge badge-role {% if user.is_administrator %}admin{% else %}teacher{% endif %}">
+                    <span class="badge badge-role {% if user.is_administrator %}admin{% else %}teacher{% endif %} mt-1">
                         Role: {{ user.get_role_display }}
                     </span>
                 </div>
             </div>
 
-            <div class="card-body p-4">
-                <form method="post" enctype="multipart/form-data">
+            <div class="card-body p-3 p-md-4">
+                <form method="post" enctype="multipart/form-data" novalidate>
                     {% csrf_token %}
                     
-                    <h6 class="text-uppercase text-muted fw-bold small mb-3 border-bottom pb-2">Account Details</h6>
+                    <h6 class="text-uppercase text-muted fw-bold smaller mb-3 border-bottom pb-2">
+                        <i class="bi bi-person-lines-fill me-1 text-primary" aria-hidden="true"></i> Account Details
+                    </h6>
                     <div class="row g-3 mb-4">
-                        <div class="col-md-6">
-                            <label class="form-label fw-semibold small">First Name</label>
+                        <div class="col-12 col-md-6">
+                            <label for="id_first_name" class="form-label fw-semibold small">First Name <span class="text-danger">*</span></label>
                             {{ user_form.first_name }}
+                            {% if user_form.first_name.errors %}
+                                <div class="invalid-feedback d-block">{{ user_form.first_name.errors }}</div>
+                            {% endif %}
                         </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-semibold small">Last Name</label>
+                        <div class="col-12 col-md-6">
+                            <label for="id_last_name" class="form-label fw-semibold small">Last Name <span class="text-danger">*</span></label>
                             {{ user_form.last_name }}
+                            {% if user_form.last_name.errors %}
+                                <div class="invalid-feedback d-block">{{ user_form.last_name.errors }}</div>
+                            {% endif %}
                         </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-semibold small">Email Address</label>
+                        <div class="col-12 col-md-6">
+                            <label for="id_email" class="form-label fw-semibold small">Email Address <span class="text-danger">*</span></label>
                             {{ user_form.email }}
+                            {% if user_form.email.errors %}
+                                <div class="invalid-feedback d-block">{{ user_form.email.errors }}</div>
+                            {% endif %}
                         </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-semibold small">Phone Number</label>
+                        <div class="col-12 col-md-6">
+                            <label for="id_phone_number" class="form-label fw-semibold small">Phone Number</label>
                             {{ user_form.phone_number }}
+                            {% if user_form.phone_number.errors %}
+                                <div class="invalid-feedback d-block">{{ user_form.phone_number.errors }}</div>
+                            {% endif %}
                         </div>
                     </div>
 
                     {% if teacher_form %}
-                    <h6 class="text-uppercase text-muted fw-bold small mb-3 border-bottom pb-2">Teacher Professional Details</h6>
+                    <h6 class="text-uppercase text-muted fw-bold smaller mb-3 border-bottom pb-2">
+                        <i class="bi bi-briefcase-fill me-1 text-primary" aria-hidden="true"></i> Teacher Professional Details
+                    </h6>
                     <div class="row g-3 mb-4">
-                        <div class="col-md-6">
-                            <label class="form-label fw-semibold small">Employee ID</label>
-                            <input type="text" class="form-control" value="{{ teacher_profile.employee_id }}" readonly disabled>
-                            <div class="form-text">System assigned unique employee identifier.</div>
+                        <div class="col-12 col-md-6">
+                            <label for="employeeIdReadonly" class="form-label fw-semibold small">Employee ID</label>
+                            <input type="text" id="employeeIdReadonly" class="form-control" value="{{ teacher_profile.employee_id }}" readonly disabled>
+                            <div class="form-text small">System-assigned institutional employee identifier.</div>
                         </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-semibold small">Department</label>
+                        <div class="col-12 col-md-6">
+                            <label for="id_department" class="form-label fw-semibold small">Department</label>
                             {{ teacher_form.department }}
+                            {% if teacher_form.department.errors %}
+                                <div class="invalid-feedback d-block">{{ teacher_form.department.errors }}</div>
+                            {% endif %}
                         </div>
-                        <div class="col-md-12">
-                            <label class="form-label fw-semibold small">Qualification</label>
+                        <div class="col-12">
+                            <label for="id_qualification" class="form-label fw-semibold small">Qualification</label>
                             {{ teacher_form.qualification }}
+                            {% if teacher_form.qualification.errors %}
+                                <div class="invalid-feedback d-block">{{ teacher_form.qualification.errors }}</div>
+                            {% endif %}
                         </div>
                     </div>
                     {% endif %}
 
-                    <div class="d-flex justify-content-end gap-2 pt-2 border-top">
-                        <a href="{% url 'dashboard:index' %}" class="btn btn-light px-4">Cancel</a>
-                        <button type="submit" class="btn btn-primary px-4">
-                            <i class="bi bi-check-lg me-1"></i> Save Changes
+                    <div class="d-flex flex-wrap justify-content-end gap-2 pt-3 border-top">
+                        <a href="{% url 'dashboard:index' %}" class="btn btn-outline-secondary px-4">Cancel</a>
+                        <button type="submit" class="btn btn-primary px-4 shadow-xs">
+                            <i class="bi bi-check-lg me-1" aria-hidden="true"></i> Save Changes
                         </button>
                     </div>
                 </form>

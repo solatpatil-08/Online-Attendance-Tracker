@@ -1,15 +1,16 @@
 /**
  * Online Attendance Tracking System - Core JavaScript
+ * Modern, Accessible & Responsive Interactions
  */
 
 document.addEventListener('DOMContentLoaded', function () {
-    // 1. Initialize Bootstrap tooltips
+    // 1. Initialize Bootstrap tooltips with container body for overflow avoidance
     const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
     tooltipTriggerList.map(function (tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl);
+        return new bootstrap.Tooltip(tooltipTriggerEl, { container: 'body' });
     });
 
-    // 2. Auto-dismiss alert messages after 6 seconds
+    // 2. Auto-dismiss flash alert messages after 6 seconds
     const alerts = document.querySelectorAll('.alert-dismissible');
     alerts.forEach(function (alert) {
         setTimeout(function () {
@@ -20,17 +21,27 @@ document.addEventListener('DOMContentLoaded', function () {
         }, 6000);
     });
 
-    // 3. Mobile Sidebar Navigation Toggle & Backdrop
+    // 3. Mobile Sidebar Navigation Toggle & Accessibility State
     const sidebarToggleBtn = document.getElementById('sidebarToggle');
     const sidebarCloseBtn = document.getElementById('sidebarCloseBtn');
     const sidebarBackdrop = document.getElementById('sidebarBackdrop');
 
     function openSidebar() {
         document.body.classList.add('sidebar-open');
+        if (sidebarToggleBtn) {
+            sidebarToggleBtn.setAttribute('aria-expanded', 'true');
+        }
+        if (sidebarCloseBtn) {
+            sidebarCloseBtn.focus();
+        }
     }
 
     function closeSidebar() {
         document.body.classList.remove('sidebar-open');
+        if (sidebarToggleBtn) {
+            sidebarToggleBtn.setAttribute('aria-expanded', 'false');
+            sidebarToggleBtn.focus();
+        }
     }
 
     if (sidebarToggleBtn) {
@@ -64,10 +75,13 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    // Automatically close sidebar if window resized to desktop
+    // Automatically close sidebar if window resized to desktop (>= 992px)
     window.addEventListener('resize', function () {
         if (window.innerWidth >= 992 && document.body.classList.contains('sidebar-open')) {
-            closeSidebar();
+            document.body.classList.remove('sidebar-open');
+            if (sidebarToggleBtn) {
+                sidebarToggleBtn.setAttribute('aria-expanded', 'false');
+            }
         }
     });
 
@@ -78,19 +92,15 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (togglePasswordBtn && passwordInput && togglePasswordIcon) {
         togglePasswordBtn.addEventListener('click', function () {
-            if (passwordInput.type === 'password') {
-                passwordInput.type = 'text';
-                togglePasswordIcon.classList.remove('bi-eye');
-                togglePasswordIcon.classList.add('bi-eye-slash');
-            } else {
-                passwordInput.type = 'password';
-                togglePasswordIcon.classList.remove('bi-eye-slash');
-                togglePasswordIcon.classList.add('bi-eye');
-            }
+            const isPassword = passwordInput.type === 'password';
+            passwordInput.type = isPassword ? 'text' : 'password';
+            togglePasswordIcon.classList.toggle('bi-eye', !isPassword);
+            togglePasswordIcon.classList.toggle('bi-eye-slash', isPassword);
+            togglePasswordBtn.setAttribute('aria-label', isPassword ? 'Hide password' : 'Show password');
         });
     }
 
-    // 5. Select all checkboxes utility for bulk attendance marking
+    // 5. Select all checkboxes utility for bulk selection tables
     const selectAllCheckbox = document.getElementById('selectAllAttendance');
     if (selectAllCheckbox) {
         selectAllCheckbox.addEventListener('change', function () {
@@ -105,6 +115,27 @@ document.addEventListener('DOMContentLoaded', function () {
         input.addEventListener('change', function () {
             if (this.form) {
                 this.form.submit();
+            }
+        });
+    });
+
+    // 7. Form Loading States: Prevent double-click submission and show spinner
+    const formsWithSubmit = document.querySelectorAll('form:not([data-no-loading])');
+    formsWithSubmit.forEach(form => {
+        form.addEventListener('submit', function (e) {
+            // Check form validity if HTML5 validation is active
+            if (form.checkValidity && !form.checkValidity()) {
+                return;
+            }
+            const submitBtn = form.querySelector('button[type="submit"]:not([data-no-loading])');
+            if (submitBtn && !submitBtn.disabled) {
+                const originalHtml = submitBtn.innerHTML;
+                submitBtn.dataset.originalHtml = originalHtml;
+                // Defer disabling slightly to allow standard form submission to register
+                setTimeout(() => {
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Processing...';
+                }, 10);
             }
         });
     });

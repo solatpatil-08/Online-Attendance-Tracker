@@ -1,28 +1,159 @@
 {% extends 'base.html' %}
 
-{% block title %}Attendance Records - Online Attendance Tracking System{% endblock %}
+{% block title %}Attendance History & Logs - Online Attendance Tracking System{% endblock %}
 
 {% block content %}
-<div class="d-flex align-items-center justify-content-between mb-4">
-    <div>
-        <h2 class="fw-bold mb-1">Attendance Sessions & Logs</h2>
-        <p class="text-muted small mb-0">Review daily attendance registrations and class log history.</p>
+<!-- Print Header (Visible only during printing) -->
+<div class="print-header d-none">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h4 class="fw-bold mb-0">AttendanceHub - Institutional Attendance Report</h4>
+            <small class="text-muted">Generated on {% now "F j, Y, H:i" %}</small>
+        </div>
+        <div class="text-end">
+            <small class="fw-semibold">Online Attendance Tracking System</small>
+        </div>
     </div>
 </div>
 
-<!-- Filters Bar -->
-<div class="card card-modern mb-4">
-    <div class="card-body p-3">
-        <form method="get" class="row g-2 align-items-center">
-            <div class="col-md-4">
-                <div class="input-group input-group-sm">
-                    <span class="input-group-text bg-light text-muted"><i class="bi bi-calendar3"></i></span>
-                    <input type="date" name="date" class="form-control" value="{{ selected_date }}">
+<!-- Page Action Header -->
+<div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-4 no-print">
+    <div>
+        <h2 class="fw-bold mb-1">Attendance History & Logs</h2>
+        <p class="text-muted small mb-0">Browse saved attendance records, filter by date ranges, student or faculty, and export audits.</p>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+        <button type="button" class="btn btn-outline-secondary btn-sm shadow-xs" onclick="window.print()">
+            <i class="bi bi-printer me-1"></i> Print
+        </button>
+        {% if user.can_export_attendance %}
+            <a href="{% url 'attendance:export_csv' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}" class="btn btn-success btn-sm shadow-xs">
+                <i class="bi bi-file-earmark-spreadsheet me-1"></i> Export CSV
+            </a>
+        {% endif %}
+        <a href="{% url 'attendance:take_attendance' %}" class="btn btn-primary btn-sm shadow-xs">
+            <i class="bi bi-pencil-square me-1"></i> Take Attendance
+        </a>
+    </div>
+</div>
+
+<!-- Summary Metric Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="stat-card">
+            <div class="stat-card-header">
+                <span class="stat-label">Total Logs</span>
+                <div class="stat-icon primary"><i class="bi bi-card-checklist"></i></div>
+            </div>
+            <div class="stat-value">{{ total_records }}</div>
+            <div class="stat-meta text-muted small">Filtered entries</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="stat-card success">
+            <div class="stat-card-header">
+                <span class="stat-label">Present</span>
+                <div class="stat-icon success"><i class="bi bi-check-circle-fill"></i></div>
+            </div>
+            <div class="stat-value text-success">{{ present_count }}</div>
+            <div class="stat-meta text-success small">On-time attendances</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="stat-card warning">
+            <div class="stat-card-header">
+                <span class="stat-label">Late</span>
+                <div class="stat-icon warning"><i class="bi bi-clock-history"></i></div>
+            </div>
+            <div class="stat-value text-warning">{{ late_count }}</div>
+            <div class="stat-meta text-warning small">Late arrivals</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="stat-card danger">
+            <div class="stat-card-header">
+                <span class="stat-label">Absent</span>
+                <div class="stat-icon danger"><i class="bi bi-x-circle-fill"></i></div>
+            </div>
+            <div class="stat-value text-danger">{{ absent_count }}</div>
+            <div class="stat-meta text-danger small">Unexcused absences</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="stat-card info">
+            <div class="stat-card-header">
+                <span class="stat-label">Excused</span>
+                <div class="stat-icon info"><i class="bi bi-shield-check"></i></div>
+            </div>
+            <div class="stat-value text-info">{{ excused_count }}</div>
+            <div class="stat-meta text-info small">Documented leaves</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="stat-card {% if attendance_percentage >= 80 %}success{% elif attendance_percentage >= 60 %}warning{% else %}danger{% endif %}">
+            <div class="stat-card-header">
+                <span class="stat-label">Attendance Rate</span>
+                <div class="stat-icon {% if attendance_percentage >= 80 %}success{% elif attendance_percentage >= 60 %}warning{% else %}danger{% endif %}">
+                    <i class="bi bi-percent"></i>
                 </div>
             </div>
-            <div class="col-md-5">
+            <div class="stat-value">{{ attendance_percentage }}%</div>
+            <div class="stat-meta text-muted small">Present + Late</div>
+        </div>
+    </div>
+</div>
+
+<!-- Search & Multi-Filter Card -->
+<div class="card card-modern mb-4 no-print">
+    <div class="card-modern-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-funnel-fill text-primary me-2"></i> Search & Filter Records</span>
+        {% if selected_date or start_date or end_date or student_query or selected_class_id or selected_section or selected_subject_id or selected_teacher_id or selected_status %}
+            <span class="badge bg-primary-subtle text-primary">Filters Active</span>
+        {% endif %}
+    </div>
+    <div class="card-body p-3">
+        <form method="get" class="row g-2 align-items-end">
+            <!-- Exact Date -->
+            <div class="col-12 col-sm-6 col-md-3">
+                <label class="form-label smaller fw-semibold text-muted mb-1">Exact Date</label>
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-light text-muted"><i class="bi bi-calendar-event"></i></span>
+                    <input type="date" name="date" class="form-control" value="{{ selected_date }}" placeholder="YYYY-MM-DD">
+                </div>
+            </div>
+
+            <!-- Date Range: From -->
+            <div class="col-12 col-sm-6 col-md-3">
+                <label class="form-label smaller fw-semibold text-muted mb-1">Date Range (From)</label>
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-light text-muted"><i class="bi bi-calendar-range"></i></span>
+                    <input type="date" name="start_date" class="form-control" value="{{ start_date }}" placeholder="Start Date">
+                </div>
+            </div>
+
+            <!-- Date Range: To -->
+            <div class="col-12 col-sm-6 col-md-3">
+                <label class="form-label smaller fw-semibold text-muted mb-1">Date Range (To)</label>
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-light text-muted"><i class="bi bi-calendar-range"></i></span>
+                    <input type="date" name="end_date" class="form-control" value="{{ end_date }}" placeholder="End Date">
+                </div>
+            </div>
+
+            <!-- Student Search -->
+            <div class="col-12 col-sm-6 col-md-3">
+                <label class="form-label smaller fw-semibold text-muted mb-1">Student (Name, ID, Roll)</label>
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-light text-muted"><i class="bi bi-search"></i></span>
+                    <input type="text" name="student" class="form-control" value="{{ student_query }}" placeholder="Search student...">
+                </div>
+            </div>
+
+            <!-- Class Filter -->
+            <div class="col-12 col-sm-6 col-md-3">
+                <label class="form-label smaller fw-semibold text-muted mb-1">Classroom</label>
                 <select name="class_id" class="form-select form-select-sm">
-                    <option value="">All Classrooms</option>
+                    <option value="">All Classes</option>
                     {% for c in classrooms %}
                         <option value="{{ c.pk }}" {% if selected_class_id == c.pk|stringformat:"s" %}selected{% endif %}>
                             {{ c.display_name }} ({{ c.academic_year.name }})
@@ -30,60 +161,182 @@
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-md-3 d-flex gap-2">
-                <button type="submit" class="btn btn-primary btn-sm px-3 flex-grow-1">
-                    <i class="bi bi-funnel-fill me-1"></i> Filter
+
+            <!-- Section Filter -->
+            <div class="col-12 col-sm-6 col-md-2">
+                <label class="form-label smaller fw-semibold text-muted mb-1">Section</label>
+                <select name="section" class="form-select form-select-sm">
+                    <option value="">All Sections</option>
+                    {% for s in sections %}
+                        <option value="{{ s }}" {% if selected_section == s %}selected{% endif %}>Section {{ s }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Subject Filter -->
+            <div class="col-12 col-sm-6 col-md-3">
+                <label class="form-label smaller fw-semibold text-muted mb-1">Subject</label>
+                <select name="subject_id" class="form-select form-select-sm">
+                    <option value="">All Subjects</option>
+                    {% for subj in subjects %}
+                        <option value="{{ subj.pk }}" {% if selected_subject_id == subj.pk|stringformat:"s" %}selected{% endif %}>
+                            {{ subj.name }} ({{ subj.code }})
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Teacher Filter -->
+            <div class="col-12 col-sm-6 col-md-2">
+                <label class="form-label smaller fw-semibold text-muted mb-1">Teacher</label>
+                <select name="teacher_id" class="form-select form-select-sm">
+                    <option value="">All Faculty</option>
+                    {% for t in teachers %}
+                        <option value="{{ t.pk }}" {% if selected_teacher_id == t.pk|stringformat:"s" %}selected{% endif %}>
+                            {{ t.get_full_name|default:t.username }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Attendance Status Filter -->
+            <div class="col-12 col-sm-6 col-md-2">
+                <label class="form-label smaller fw-semibold text-muted mb-1">Status</label>
+                <select name="status" class="form-select form-select-sm">
+                    <option value="">All Statuses</option>
+                    {% for val, label in statuses %}
+                        <option value="{{ val }}" {% if selected_status == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Submit and Reset Buttons -->
+            <div class="col-12 d-flex justify-content-end gap-2 mt-2">
+                <a href="{% url 'attendance:attendance_list' %}" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-x-circle me-1"></i> Clear Filters
+                </a>
+                <button type="submit" class="btn btn-primary btn-sm px-4">
+                    <i class="bi bi-funnel me-1"></i> Filter Records
                 </button>
-                <a href="{% url 'attendance:attendance_list' %}" class="btn btn-outline-secondary btn-sm">Reset</a>
             </div>
         </form>
     </div>
 </div>
 
-<!-- Sessions Table -->
+<!-- Attendance Records Table -->
 <div class="card card-modern">
-    <div class="card-modern-header d-flex align-items-center justify-content-between">
-        <span><i class="bi bi-clock-history me-2 text-primary"></i> Attendance Sessions</span>
-        <span class="badge bg-primary-subtle text-primary">{{ sessions|length }} Sessions</span>
+    <div class="card-modern-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+        <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-table text-primary"></i>
+            <span class="fw-bold">Attendance Records</span>
+            <span class="badge bg-light text-dark border">{{ total_records }} Total</span>
+        </div>
+        {% if user.can_export_attendance and total_records > 0 %}
+            <a href="{% url 'attendance:export_csv' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}" class="btn btn-outline-success btn-sm no-print">
+                <i class="bi bi-download me-1"></i> Download CSV
+            </a>
+        {% endif %}
     </div>
     <div class="card-body p-0">
-        {% if sessions %}
+        {% if records %}
             <div class="table-responsive">
                 <table class="table table-custom table-hover align-middle mb-0">
                     <thead>
                         <tr>
                             <th>Date</th>
+                            <th>Student ID</th>
+                            <th>Student Name</th>
                             <th>Class & Section</th>
                             <th>Subject</th>
+                            <th>Status</th>
                             <th>Recorded By</th>
-                            <th>Total Logged</th>
-                            <th>Created Timestamp</th>
+                            <th>Remarks</th>
+                            <th class="no-print text-end">Action</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for session in sessions %}
+                        {% for record in records %}
                             <tr>
-                                <td class="fw-semibold">
-                                    <i class="bi bi-calendar-event text-primary me-1"></i>
-                                    {{ session.date|date:"F j, Y" }}
+                                <td class="fw-semibold text-nowrap">
+                                    <i class="bi bi-calendar3 text-muted me-1"></i>
+                                    {{ record.date|date:"M j, Y" }}
                                 </td>
-                                <td><span class="badge bg-light text-dark border">{{ session.classroom.display_name }}</span></td>
-                                <td>{{ session.subject.name }} (<code>{{ session.subject.code }}</code>)</td>
-                                <td>{{ session.recorded_by.get_full_name|default:session.recorded_by.username }}</td>
                                 <td>
-                                    <span class="badge bg-info-subtle text-info fw-semibold">{{ session.records.count }} Records</span>
+                                    <span class="badge bg-light text-secondary border font-monospace">
+                                        {{ record.student.student_id }}
+                                    </span>
                                 </td>
-                                <td><span class="small text-muted">{{ session.created_at|date:"M j, H:i" }}</span></td>
+                                <td>
+                                    <a href="{% url 'attendance:student_report_detail' record.student.pk %}" class="fw-semibold text-dark text-decoration-none">
+                                        {{ record.student.full_name }}
+                                    </a>
+                                    {% if record.student.roll_number %}
+                                        <small class="text-muted d-block smaller">Roll #{{ record.student.roll_number }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-light text-dark border">{{ record.classroom.display_name }}</span>
+                                </td>
+                                <td>
+                                    <div class="fw-semibold">{{ record.subject.name }}</div>
+                                    <small class="text-muted font-monospace smaller">{{ record.subject.code }}</small>
+                                </td>
+                                <td>
+                                    {% if record.status == 'PRESENT' %}
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                                            <i class="bi bi-check-circle-fill me-1"></i> Present
+                                        </span>
+                                    {% elif record.status == 'LATE' %}
+                                        <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1">
+                                            <i class="bi bi-clock-fill me-1"></i> Late
+                                        </span>
+                                    {% elif record.status == 'ABSENT' %}
+                                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1">
+                                            <i class="bi bi-x-circle-fill me-1"></i> Absent
+                                        </span>
+                                    {% elif record.status == 'EXCUSED' %}
+                                        <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1">
+                                            <i class="bi bi-shield-check me-1"></i> Excused
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-secondary-subtle text-secondary px-2 py-1">{{ record.get_status_display }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="small text-secondary">
+                                        {{ record.recorded_by.get_full_name|default:record.recorded_by.username }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if record.remarks %}
+                                        <span class="small text-muted" title="{{ record.remarks }}">
+                                            <i class="bi bi-chat-left-text text-primary me-1"></i>{{ record.remarks }}
+                                        </span>
+                                    {% else %}
+                                        <span class="text-muted small">—</span>
+                                    {% endif %}
+                                </td>
+                                <td class="no-print text-end">
+                                    <a href="{% url 'attendance:student_report_detail' record.student.pk %}" class="btn btn-outline-primary btn-sm py-0 px-2 smaller" title="View Student Dossier">
+                                        Dossier
+                                    </a>
+                                </td>
                             </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
+
+            <!-- Pagination Bar -->
+            {% include 'includes/pagination.html' with entity_name='attendance records' %}
         {% else %}
             <div class="text-center text-muted py-5">
                 <i class="bi bi-journal-x fs-1 d-block mb-3 text-secondary"></i>
-                <h5>No Attendance Sessions Found</h5>
-                <p class="small mb-0">No attendance sessions match the current query criteria.</p>
+                <h5 class="fw-bold">No Attendance Records Found</h5>
+                <p class="small text-muted mb-3">No individual student records match your active query criteria.</p>
+                <a href="{% url 'attendance:attendance_list' %}" class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-arrow-counterclockwise me-1"></i> Reset All Filters
+                </a>
             </div>
         {% endif %}
     </div>

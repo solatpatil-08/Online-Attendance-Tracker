@@ -296,3 +296,164 @@ class AuthenticationAndSecurityTests(TestCase):
         })
         self.assertEqual(response.status_code, 403)
         self.assertFalse(Classroom.objects.filter(name='Grade 11', section='C').exists())
+
+    # 9. Comprehensive Teacher Management Tests
+    def test_teacher_creation_hashes_password_and_assigns_role(self):
+        """Admin creates a teacher; password must be securely hashed and role assigned."""
+        self.client.login(username='admin_user', password='AdminPassword123!')
+        response = self.client.post(reverse('accounts:teacher_create'), {
+            'username': 'new_teacher_dr',
+            'email': 'dr_new@school.edu',
+            'first_name': 'Doctor',
+            'last_name': 'Who',
+            'employee_id': 'EMP-DOC-01',
+            'department': 'Physics',
+            'qualification': 'Ph.D. Quantum Physics',
+            'password': 'SecurePassword123!',
+            'confirm_password': 'SecurePassword123!',
+        })
+        new_teacher = User.objects.get(username='new_teacher_dr')
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(response, reverse('accounts:teacher_detail', kwargs={'pk': new_teacher.pk}))
+        self.assertEqual(new_teacher.role, User.Role.TEACHER)
+        self.assertTrue(new_teacher.check_password('SecurePassword123!'))
+        self.assertNotEqual(new_teacher.password, 'SecurePassword123!')  # Hashed
+        self.assertEqual(new_teacher.teacher_profile.employee_id, 'EMP-DOC-01')
+        self.assertEqual(new_teacher.teacher_profile.department, 'Physics')
+
+    def test_teacher_creation_prevents_duplicate_employee_id_or_username(self):
+        """Teacher creation rejects duplicate employee IDs or usernames."""
+        self.client.login(username='admin_user', password='AdminPassword123!')
+        response = self.client.post(reverse('accounts:teacher_create'), {
+            'username': 'teacher_duplicate',
+            'email': 'dup@school.edu',
+            'first_name': 'Dup',
+            'last_name': 'Licat',
+            'employee_id': 'EMP-TEST-01',  # Already taken by self.teacher_user
+            'password': 'Password123!',
+            'confirm_password': 'Password123!',
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertFormError(response.context['form'], 'employee_id', 'A teacher with this employee ID already exists.')
+
+    def test_teacher_admin_edit_profile(self):
+        """Admin can edit teacher profile details, department, and active status."""
+        self.client.login(username='admin_user', password='AdminPassword123!')
+        response = self.client.post(reverse('accounts:teacher_edit', kwargs={'pk': self.teacher_user.pk}), {
+            'first_name': 'Janet',
+            'last_name': 'Teacher-Smith',
+            'email': 'janet.updated@attendance.local',
+            'phone_number': '+1 555-9876',
+            'employee_id': 'EMP-TEST-01-UPD',
+            'department': 'Advanced Science',
+            'qualification': 'M.Sc., B.Ed.',
+            'is_active': True,
+        })
+        self.assertEqual(response.status_code, 302)
+        self.teacher_user.refresh_from_db()
+        self.assertEqual(self.teacher_user.first_name, 'Janet')
+        self.assertEqual(self.teacher_user.last_name, 'Teacher-Smith')
+        self.assertEqual(self.teacher_user.email, 'janet.updated@attendance.local')
+        self.assertEqual(self.teacher_user.teacher_profile.employee_id, 'EMP-TEST-01-UPD')
+        self.assertEqual(self.teacher_user.teacher_profile.department, 'Advanced Science')
+
+    def test_teacher_admin_edit_can_reset_password(self):
+        """Admin can optionally reset a teacher's password."""
+        self.client.login(username='admin_user', password='AdminPassword123!')
+        response = self.client.post(reverse('accounts:teacher_edit', kwargs={'pk': self.teacher_user.pk}), {
+            'first_name': self.teacher_user.first_name,
+            'last_name': self.teacher_user.last_name,
+            'email': self.teacher_user.email,
+            'employee_id': self.teacher_user.teacher_profile.employee_id,
+            'is_active': True,
+            'new_password': 'BrandNewPassword999!',
+            'confirm_new_password': 'BrandNewPassword999!',
+        })
+        self.assertEqual(response.status_code, 302)
+        self.teacher_user.refresh_from_db()
+        self.assertTrue(self.teacher_user.check_password('BrandNewPassword999!'))
+
+    def test_teacher_search_and_filter(self):
+        """Admin can search and filter teachers in list view."""
+        self.client.login(username='admin_user', password='AdminPassword123!')
+        # Search by employee id
+        resp = self.client.get(reverse('accounts:teacher_list') + '?q=EMP-TEST-01')
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'EMP-TEST-01')
+        self.assertNotContains(resp, 'Bob Unassigned')
+
+        # Filter by department
+        resp = self.client.get(reverse('accounts:teacher_list') + '?department=Science')
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'Jane')
+
+    def test_teacher_toggle_status_cannot_deactivate_self(self):
+        """Admin cannot deactivate their own administrative account."""
+        self.client.login(username='admin_user', password='AdminPassword123!')
+        response = self.client.post(reverse('accounts:teacher_toggle_status', kwargs={'pk': self.admin_user.pk}))
+        # Admin is not role=TEACHER, returns 404
+        self.assertEqual(response.status_code, 404)
+
+    def test_admin_assign_and_remove_class_subject_to_teacher(self):
+        """Admin can assign and remove a class-subject from a teacher."""
+        self.client.login(username='admin_user', password='AdminPassword123!')
+        subject = Subject.objects.create(name='Biochemistry', code='BIO-301')
+
+        # Assign BIO-301 in assigned_class to teacher_user
+        response = self.client.post(reverse('accounts:teacher_assign', kwargs={'pk': self.teacher_user.pk}), {
+            'classroom': self.assigned_class.pk,
+            'subject': subject.pk,
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(ClassSubjectAssignment.objects.filter(
+            classroom=self.assigned_class,
+            subject=subject,
+            teacher=self.teacher_user
+        ).exists())
+
+        # Duplicate assignment should be prevented
+        dup_resp = self.client.post(reverse('accounts:teacher_assign', kwargs={'pk': self.teacher_user.pk}), {
+            'classroom': self.assigned_class.pk,
+            'subject': subject.pk,
+        })
+        self.assertEqual(dup_resp.status_code, 302)
+        self.assertEqual(ClassSubjectAssignment.objects.filter(
+            classroom=self.assigned_class,
+            subject=subject
+        ).count(), 1)
+
+        # Remove assignment
+        assignment = ClassSubjectAssignment.objects.get(classroom=self.assigned_class, subject=subject)
+        del_resp = self.client.post(reverse('accounts:teacher_remove_assignment', kwargs={
+            'pk': self.teacher_user.pk,
+            'assignment_id': assignment.pk
+        }))
+        self.assertEqual(del_resp.status_code, 302)
+        self.assertFalse(ClassSubjectAssignment.objects.filter(pk=assignment.pk).exists())
+
+    def test_assign_to_inactive_teacher_fails(self):
+        """Assigning class/subject to an inactive teacher fails."""
+        self.client.login(username='admin_user', password='AdminPassword123!')
+        self.teacher_user.is_active = False
+        self.teacher_user.save()
+        subject = Subject.objects.create(name='Geology', code='GEO-101')
+
+        response = self.client.post(reverse('accounts:teacher_assign', kwargs={'pk': self.teacher_user.pk}), {
+            'classroom': self.assigned_class.pk,
+            'subject': subject.pk,
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(ClassSubjectAssignment.objects.filter(classroom=self.assigned_class, subject=subject).exists())
+
+    def test_unauthorized_teacher_forbidden_from_teacher_management(self):
+        """Non-admin user cannot access teacher editing, detail, or assignments."""
+        self.client.login(username='teacher_user', password='TeacherPassword123!')
+        forbidden_urls = [
+            reverse('accounts:teacher_edit', kwargs={'pk': self.teacher_user.pk}),
+            reverse('accounts:teacher_detail', kwargs={'pk': self.teacher_user.pk}),
+            reverse('accounts:teacher_assign', kwargs={'pk': self.teacher_user.pk}),
+        ]
+        for url in forbidden_urls:
+            resp = self.client.get(url)
+            self.assertEqual(resp.status_code, 403)
+

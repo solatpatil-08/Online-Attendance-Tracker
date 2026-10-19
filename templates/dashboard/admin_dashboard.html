@@ -372,11 +372,11 @@
                     <table class="table table-custom align-middle">
                         <thead>
                             <tr>
-                                <th>Class & Section</th>
-                                <th class="text-center">Enrolled</th>
-                                <th class="text-center">Recorded</th>
-                                <th class="text-center">Present / Late</th>
-                                <th class="text-center">Rate</th>
+                                <th scope="col">Class & Section</th>
+                                <th scope="col" class="text-center">Enrolled</th>
+                                <th scope="col" class="text-center">Recorded</th>
+                                <th scope="col" class="text-center">Present / Late</th>
+                                <th scope="col" class="text-center">Rate</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -447,12 +447,12 @@
             <table class="table table-custom align-middle">
                 <thead>
                     <tr>
-                        <th>Date & Time</th>
-                        <th>Classroom</th>
-                        <th>Subject</th>
-                        <th>Recorded By</th>
-                        <th>Students Marked</th>
-                        <th class="text-end">Actions</th>
+                        <th scope="col">Date & Time</th>
+                        <th scope="col">Classroom</th>
+                        <th scope="col">Subject</th>
+                        <th scope="col">Recorded By</th>
+                        <th scope="col">Students Marked</th>
+                        <th scope="col" class="text-end">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -559,12 +559,12 @@ document.addEventListener('DOMContentLoaded', function () {
                     {
                         label: 'Attendance Rate (%)',
                         data: trendPercentages,
-                        borderColor: '#2563eb',
-                        backgroundColor: 'rgba(37, 99, 235, 0.08)',
+                        borderColor: '#3730a3',
+                        backgroundColor: 'rgba(55, 48, 163, 0.08)',
                         borderWidth: 2.5,
                         fill: true,
                         tension: 0.35,
-                        pointBackgroundColor: '#2563eb',
+                        pointBackgroundColor: '#3730a3',
                         pointBorderColor: '#ffffff',
                         pointBorderWidth: 2,
                         pointRadius: 4,
@@ -646,7 +646,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     data: isEmpty ? [1] : statusData,
                     backgroundColor: isEmpty 
                         ? ['#e2e8f0'] 
-                        : ['#10b981', '#f59e0b', '#ef4444', '#0284c7'],
+                        : ['#15803d', '#b45309', '#b91c1c', '#0284c7'],
                     borderWidth: 2,
                     borderColor: '#ffffff',
                     hoverOffset: 4
@@ -694,9 +694,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     label: 'Attendance Rate (%)',
                     data: classPercentages.length > 0 ? classPercentages : [0],
                     backgroundColor: classPercentages.map(val => {
-                        if (val >= 85) return '#10b981';
-                        if (val >= 70) return '#f59e0b';
-                        return '#ef4444';
+                        if (val >= 85) return '#15803d';
+                        if (val >= 70) return '#b45309';
+                        return '#b91c1c';
                     }),
                     borderRadius: 6,
                     maxBarThickness: 38

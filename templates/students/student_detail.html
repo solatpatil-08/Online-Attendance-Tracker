@@ -67,7 +67,12 @@
         <h6 class="text-uppercase text-muted fw-bold smaller letter-spacing-1 mb-0">
             <i class="bi bi-pie-chart-fill me-1 text-primary"></i> Attendance Performance Summary
         </h6>
-        <span class="smaller text-muted">Calculated from institutional attendance logs</span>
+        <div class="d-flex align-items-center gap-2">
+            <span class="smaller text-muted d-none d-md-inline">Calculated from institutional attendance logs</span>
+            <a href="{% url 'attendance:student_report_detail' student.pk %}" class="btn btn-outline-primary btn-sm py-0 px-2 smaller">
+                <i class="bi bi-file-earmark-person me-1"></i> Full Dossier & Report
+            </a>
+        </div>
     </div>
     <div class="row g-3">
         <!-- Attendance Percentage Rate -->
@@ -261,11 +266,11 @@
                         <table class="table table-custom table-hover align-middle mb-0">
                             <thead>
                                 <tr>
-                                    <th>Date</th>
-                                    <th>Subject</th>
-                                    <th>Status</th>
-                                    <th>Recorded By</th>
-                                    <th>Remarks</th>
+                                    <th scope="col">Date</th>
+                                    <th scope="col">Subject</th>
+                                    <th scope="col">Status</th>
+                                    <th scope="col">Recorded By</th>
+                                    <th scope="col">Remarks</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -280,20 +285,20 @@
                                         </td>
                                         <td>
                                             {% if att.status == 'PRESENT' %}
-                                                <span class="badge bg-success-subtle text-success border border-success-subtle">
-                                                    Present
+                                                <span class="badge-status present">
+                                                    <i class="bi bi-check-circle-fill me-1" aria-hidden="true"></i> Present
                                                 </span>
                                             {% elif att.status == 'LATE' %}
-                                                <span class="badge bg-warning-subtle text-warning border border-warning-subtle">
-                                                    Late
+                                                <span class="badge-status late">
+                                                    <i class="bi bi-clock-fill me-1" aria-hidden="true"></i> Late
                                                 </span>
                                             {% elif att.status == 'ABSENT' %}
-                                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
-                                                    Absent
+                                                <span class="badge-status absent">
+                                                    <i class="bi bi-x-circle-fill me-1" aria-hidden="true"></i> Absent
                                                 </span>
                                             {% elif att.status == 'EXCUSED' %}
-                                                <span class="badge bg-info-subtle text-info border border-info-subtle">
-                                                    Excused
+                                                <span class="badge-status excused">
+                                                    <i class="bi bi-shield-check me-1" aria-hidden="true"></i> Excused
                                                 </span>
                                             {% endif %}
                                         </td>

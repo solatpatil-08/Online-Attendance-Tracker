@@ -1,0 +1,260 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ teacher.get_full_name|default:teacher.username }} - Teacher Profile{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-4">
+    <div>
+        <div class="d-flex align-items-center gap-2 mb-1">
+            <h2 class="fw-bold mb-0">{{ teacher.get_full_name|default:teacher.username }}</h2>
+            {% if teacher.is_active %}
+                <span class="badge bg-success-subtle text-success">Active Faculty</span>
+            {% else %}
+                <span class="badge bg-danger-subtle text-danger">Deactivated</span>
+            {% endif %}
+        </div>
+        <p class="text-muted small mb-0">
+            Employee ID: <strong>{{ profile.employee_id|default:"N/A" }}</strong> &bull;
+            Department: <strong>{{ profile.department|default:"General" }}</strong> &bull;
+            Username: <code>{{ teacher.username }}</code>
+        </p>
+    </div>
+    <div class="d-flex flex-wrap align-items-center gap-2">
+        <a href="{% url 'accounts:teacher_list' %}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left me-1"></i> Back to Faculty
+        </a>
+        <a href="{% url 'accounts:teacher_edit' teacher.pk %}" class="btn btn-outline-primary btn-sm">
+            <i class="bi bi-pencil me-1"></i> Edit Profile
+        </a>
+        <button type="button" class="btn btn-sm {% if teacher.is_active %}btn-outline-danger{% else %}btn-outline-success{% endif %}" data-bs-toggle="modal" data-bs-target="#toggleTeacherModal">
+            {% if teacher.is_active %}
+                <i class="bi bi-person-x me-1"></i> Deactivate
+            {% else %}
+                <i class="bi bi-person-check me-1"></i> Activate
+            {% endif %}
+        </button>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <!-- Left Column: Profile Details -->
+    <div class="col-lg-4">
+        <div class="card card-modern mb-4">
+            <div class="card-modern-header">
+                <span><i class="bi bi-person-badge-fill me-2 text-primary"></i> Faculty Profile</span>
+            </div>
+            <div class="card-body p-3">
+                <ul class="list-group list-group-flush small">
+                    <li class="list-group-item d-flex justify-content-between px-0 py-2">
+                        <span class="text-muted">Username</span>
+                        <span class="fw-semibold font-monospace">{{ teacher.username }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between px-0 py-2">
+                        <span class="text-muted">Employee ID</span>
+                        <span class="badge bg-light text-dark border">{{ profile.employee_id|default:"N/A" }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between px-0 py-2">
+                        <span class="text-muted">Email</span>
+                        <span class="fw-semibold">{{ teacher.email|default:"-" }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between px-0 py-2">
+                        <span class="text-muted">Phone</span>
+                        <span class="fw-semibold">{{ teacher.phone_number|default:"-" }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between px-0 py-2">
+                        <span class="text-muted">Department</span>
+                        <span class="fw-semibold">{{ profile.department|default:"General" }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between px-0 py-2">
+                        <span class="text-muted">Qualification</span>
+                        <span class="fw-semibold">{{ profile.qualification|default:"-" }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between px-0 py-2">
+                        <span class="text-muted">Joined Date</span>
+                        <span class="text-muted">{{ teacher.date_joined|date:"M d, Y" }}</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Supervised Classrooms Card -->
+        <div class="card card-modern">
+            <div class="card-modern-header">
+                <span><i class="bi bi-mortarboard-fill me-2 text-primary"></i> Class Teacher Supervision</span>
+            </div>
+            <div class="card-body p-3">
+                {% if supervised_classes %}
+                    <ul class="list-group list-group-flush small">
+                        {% for c in supervised_classes %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-2">
+                                <div>
+                                    <a href="{% url 'academics:classroom_detail' c.pk %}" class="fw-semibold text-decoration-none">
+                                        {{ c.display_name }}
+                                    </a>
+                                    <div class="text-muted small">{{ c.academic_year.name }}</div>
+                                </div>
+                                <span class="badge bg-light text-dark border">{{ c.students.count }} Students</span>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="small text-muted mb-0 text-center py-2">
+                        Not currently assigned as primary supervisor for any classroom.
+                    </p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column: Assigned Classes & Subjects -->
+    <div class="col-lg-8">
+        <div class="card card-modern">
+            <div class="card-modern-header d-flex align-items-center justify-content-between">
+                <span><i class="bi bi-journal-bookmark-fill me-2 text-primary"></i> Assigned Classes & Subjects</span>
+                {% if teacher.is_active %}
+                    <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#assignClassSubjectModal">
+                        <i class="bi bi-plus-circle me-1"></i> Assign Class & Subject
+                    </button>
+                {% else %}
+                    <span class="badge bg-danger-subtle text-danger">Account Inactive - Allocations Disabled</span>
+                {% endif %}
+            </div>
+            <div class="card-body p-0">
+                {% if assignments %}
+                    <div class="table-responsive">
+                        <table class="table table-custom table-hover align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Classroom & Section</th>
+                                    <th scope="col">Academic Year</th>
+                                    <th scope="col">Subject</th>
+                                    <th scope="col">Course Code</th>
+                                    <th scope="col">Enrolled Students</th>
+                                    <th scope="col">Status</th>
+                                    <th scope="col" class="text-end">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for assign in assignments %}
+                                    <tr>
+                                        <td>
+                                            <a href="{% url 'academics:classroom_detail' assign.classroom.pk %}" class="fw-semibold text-decoration-none text-dark">
+                                                {{ assign.classroom.display_name }}
+                                            </a>
+                                        </td>
+                                        <td>{{ assign.classroom.academic_year.name }}</td>
+                                        <td>{{ assign.subject.name }}</td>
+                                        <td><code>{{ assign.subject.code }}</code></td>
+                                        <td>
+                                            <span class="badge bg-light text-dark border">
+                                                {{ assign.classroom.students.count }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            {% if assign.is_active and assign.classroom.is_active and assign.subject.is_active %}
+                                                <span class="badge bg-success-subtle text-success">Active</span>
+                                            {% else %}
+                                                <span class="badge bg-warning-subtle text-warning">Inactive</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-end">
+                                            <form method="post" action="{% url 'accounts:teacher_remove_assignment' teacher.pk assign.pk %}" class="d-inline" onsubmit="return confirm('Remove assignment of {{ assign.subject.name }} in {{ assign.classroom.display_name }} from this teacher?');">
+                                                {% csrf_token %}
+                                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Unassign Subject">
+                                                    <i class="bi bi-x-circle"></i> Unassign
+                                                </button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center text-muted py-5 px-3">
+                        <i class="bi bi-book-half fs-1 d-block mb-3 text-secondary"></i>
+                        <h5>No Classes or Subjects Assigned</h5>
+                        <p class="small mb-3">This teacher has not been allocated to teach any subjects in any classrooms.</p>
+                        {% if teacher.is_active %}
+                            <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#assignClassSubjectModal">
+                                <i class="bi bi-plus-circle me-1"></i> Allocate First Class & Subject
+                            </button>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Assign Class & Subject -->
+{% if teacher.is_active %}
+<div class="modal fade" id="assignClassSubjectModal" tabindex="-1" aria-labelledby="assignModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="post" action="{% url 'accounts:teacher_assign' teacher.pk %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="assignModalLabel">Assign Class & Subject to {{ teacher.get_full_name|default:teacher.username }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="{{ assign_form.classroom.id_for_label }}" class="form-label fw-semibold small">Target Classroom <span class="text-danger">*</span></label>
+                        {{ assign_form.classroom }}
+                        <div class="form-text">Choose the active classroom that will receive instruction.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="{{ assign_form.subject.id_for_label }}" class="form-label fw-semibold small">Academic Subject <span class="text-danger">*</span></label>
+                        {{ assign_form.subject }}
+                        <div class="form-text">Select the active subject to assign to this teacher.</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-lg me-1"></i> Confirm Assignment
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Modal: Toggle Status -->
+<div class="modal fade" id="toggleTeacherModal" tabindex="-1" aria-labelledby="toggleStatusModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content text-start">
+            <div class="modal-header">
+                <h5 class="modal-title" id="toggleStatusModalLabel">
+                    {% if teacher.is_active %}Deactivate{% else %}Activate{% endif %} Faculty Member
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                {% if teacher.is_active %}
+                    <p>Are you sure you want to deactivate the account for <strong>{{ teacher.get_full_name|default:teacher.username }}</strong>?</p>
+                    <div class="alert alert-warning small mb-0">
+                        <i class="bi bi-exclamation-triangle-fill me-1"></i> Deactivated faculty accounts cannot sign in or mark student attendance.
+                    </div>
+                {% else %}
+                    <p>Are you sure you want to reactivate the account for <strong>{{ teacher.get_full_name|default:teacher.username }}</strong>?</p>
+                    <p class="small text-muted mb-0">The teacher will regain login access and attendance taking capabilities.</p>
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                <form method="post" action="{% url 'accounts:teacher_toggle_status' teacher.pk %}">
+                    {% csrf_token %}
+                    {% if teacher.is_active %}
+                        <button type="submit" class="btn btn-danger">Confirm Deactivation</button>
+                    {% else %}
+                        <button type="submit" class="btn btn-success">Confirm Activation</button>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

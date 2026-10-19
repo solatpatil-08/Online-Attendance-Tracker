@@ -1,33 +1,99 @@
 {% extends 'base.html' %}
-{% load crispy_forms_tags %}
 
-{% block title %}Create Classroom - Online Attendance Tracking System{% endblock %}
+{% block title %}
+    {% if is_edit %}Edit {{ classroom.display_name }} - Class Management{% else %}Create Classroom - Online Attendance Tracking System{% endif %}
+{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-lg-6">
         <div class="d-flex align-items-center justify-content-between mb-4">
             <div>
-                <h3 class="fw-bold mb-1">Create New Classroom</h3>
-                <p class="text-muted small mb-0">Define an academic grade and section for enrollment and attendance.</p>
+                <h3 class="fw-bold mb-1">
+                    {% if is_edit %}Edit Classroom Details{% else %}Create New Classroom{% endif %}
+                </h3>
+                <p class="text-muted small mb-0">
+                    {% if is_edit %}
+                        Update grade name, section, academic session, or supervising faculty.
+                    {% else %}
+                        Define an academic grade and section for enrollment, allocations, and attendance.
+                    {% endif %}
+                </p>
             </div>
-            <a href="{% url 'academics:classroom_list' %}" class="btn btn-outline-secondary btn-sm">
-                <i class="bi bi-arrow-left me-1"></i> Back to Classrooms
+            <a href="{% if is_edit %}{% url 'academics:classroom_detail' classroom.pk %}{% else %}{% url 'academics:classroom_list' %}{% endif %}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i> Back
             </a>
         </div>
 
         <div class="card card-modern">
-            <div class="card-modern-header">
-                <span><i class="bi bi-plus-circle me-2 text-primary"></i> Classroom Details</span>
+            <div class="card-modern-header d-flex align-items-center justify-content-between">
+                <span>
+                    <i class="bi {% if is_edit %}bi-pencil-square{% else %}bi-plus-circle{% endif %} me-2 text-primary"></i>
+                    {% if is_edit %}Classroom Specifications{% else %}New Classroom Details{% endif %}
+                </span>
+                {% if is_edit %}
+                    <span class="badge bg-light text-dark border">{{ classroom.academic_year.name }}</span>
+                {% endif %}
             </div>
             <div class="card-body p-4">
                 <form method="post" novalidate>
                     {% csrf_token %}
-                    {{ form|crispy }}
-                    <div class="d-flex justify-content-end gap-2 pt-3 border-top mt-3">
-                        <a href="{% url 'academics:classroom_list' %}" class="btn btn-light px-4">Cancel</a>
+
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger py-2 small mb-4">
+                            {% for error in form.non_field_errors %}
+                                <div><i class="bi bi-exclamation-circle-fill me-1"></i> {{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-7">
+                            <label for="{{ form.name.id_for_label }}" class="form-label fw-semibold small">Class / Grade Name <span class="text-danger">*</span></label>
+                            {{ form.name }}
+                            {% if form.name.errors %}<div class="text-danger small mt-1">{{ form.name.errors.0 }}</div>{% endif %}
+                            <div class="form-text">e.g. 'Grade 10', 'Class 5', 'Year 11'.</div>
+                        </div>
+                        <div class="col-md-5">
+                            <label for="{{ form.section.id_for_label }}" class="form-label fw-semibold small">Section / Division <span class="text-danger">*</span></label>
+                            {{ form.section }}
+                            {% if form.section.errors %}<div class="text-danger small mt-1">{{ form.section.errors.0 }}</div>{% endif %}
+                            <div class="form-text">e.g. 'A', 'B', 'Morning'.</div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.academic_year.id_for_label }}" class="form-label fw-semibold small">Academic Year Session <span class="text-danger">*</span></label>
+                        {{ form.academic_year }}
+                        {% if form.academic_year.errors %}<div class="text-danger small mt-1">{{ form.academic_year.errors.0 }}</div>{% endif %}
+                        <div class="form-text">The institutional calendar session this classroom operates under.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.class_teacher.id_for_label }}" class="form-label fw-semibold small">Supervising Class Teacher</label>
+                        {{ form.class_teacher }}
+                        {% if form.class_teacher.errors %}<div class="text-danger small mt-1">{{ form.class_teacher.errors.0 }}</div>{% endif %}
+                        <div class="form-text">Primary faculty member responsible for homeroom supervision.</div>
+                    </div>
+
+                    <div class="mb-4">
+                        <div class="form-check form-switch">
+                            {{ form.is_active }}
+                            <label class="form-check-label fw-semibold small" for="{{ form.is_active.id_for_label }}">
+                                Active Classroom
+                            </label>
+                        </div>
+                        {% if form.is_active.errors %}<div class="text-danger small mt-1">{{ form.is_active.errors.0 }}</div>{% endif %}
+                        <div class="form-text">Inactive classrooms are hidden from daily attendance rosters.</div>
+                    </div>
+
+                    <div class="d-flex flex-column flex-sm-row justify-content-end gap-2 pt-3 border-top">
+                        <a href="{% if is_edit %}{% url 'academics:classroom_detail' classroom.pk %}{% else %}{% url 'academics:classroom_list' %}{% endif %}" class="btn btn-light px-4">
+                            Cancel
+                        </a>
                         <button type="submit" class="btn btn-primary px-4">
-                            <i class="bi bi-check-lg me-1"></i> Save Classroom
+                            <i class="bi bi-check-lg me-1"></i>
+                            {% if is_edit %}Save Changes{% else %}Create Classroom{% endif %}
                         </button>
                     </div>
                 </form>

@@ -1,103 +1,339 @@
 {% extends 'base.html' %}
 
-{% block title %}Attendance Reports - Online Attendance Tracking System{% endblock %}
+{% block title %}Class-Wise Attendance Report - Online Attendance Tracking System{% endblock %}
 
 {% block content %}
-<div class="d-flex align-items-center justify-content-between mb-4">
-    <div>
-        <h2 class="fw-bold mb-1">Attendance Reports & Analytics</h2>
-        <p class="text-muted small mb-0">Daily status breakdown, class percentage analysis, and attendance audit.</p>
+<!-- Print Header (Visible only during printing) -->
+<div class="print-header d-none">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h4 class="fw-bold mb-0">AttendanceHub - Class-Wise Attendance Performance</h4>
+            <small class="text-muted">Report Date: {{ report_date|date:"F j, Y" }} | Printed on {% now "F j, Y, H:i" %}</small>
+        </div>
+        <div class="text-end">
+            <small class="fw-semibold">Institutional Analytics</small>
+        </div>
     </div>
+</div>
+
+<!-- Page Top Actions Header -->
+<div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-4 no-print">
     <div>
+        <h2 class="fw-bold mb-1">Class-Wise Attendance Report</h2>
+        <p class="text-muted small mb-0">
+            Audit daily classroom submissions, track explicit absences vs unrecorded students, and analyze grade performance.
+        </p>
+    </div>
+    <div class="d-flex flex-wrap align-items-center gap-2">
+        <button type="button" class="btn btn-outline-secondary btn-sm shadow-xs" onclick="window.print()">
+            <i class="bi bi-printer me-1"></i> Print Report
+        </button>
+        {% if user.can_export_attendance %}
+            <a href="{% url 'attendance:export_csv' %}?date={{ report_date|date:'Y-m-d' }}" class="btn btn-success btn-sm shadow-xs">
+                <i class="bi bi-file-earmark-spreadsheet me-1"></i> Export Daily CSV
+            </a>
+        {% endif %}
         <form method="get" class="d-flex align-items-center gap-2">
-            <input type="date" name="date" class="form-control form-control-sm" value="{{ report_date|date:'Y-m-d' }}" onchange="this.form.submit()">
-            <button type="submit" class="btn btn-outline-primary btn-sm">Refresh</button>
+            <input type="date" name="date" class="form-control form-control-sm" value="{{ report_date|date:'Y-m-d' }}" aria-label="Filter report date" onchange="this.form.submit()">
+            <select name="class_id" class="form-select form-select-sm" aria-label="Filter by classroom" onchange="this.form.submit()">
+                <option value="">All Classrooms</option>
+                {% for c in all_filter_classrooms %}
+                    <option value="{{ c.pk }}" {% if selected_class_id == c.pk|stringformat:"s" %}selected{% endif %}>
+                        {{ c.display_name }}
+                    </option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-primary btn-sm">Refresh</button>
         </form>
     </div>
 </div>
 
-<!-- Daily Summary Metric Cards -->
+<!-- Daily Institutional Metrics Summary Cards -->
 <div class="row g-3 mb-4">
-    <div class="col-sm-6 col-xl-3">
+    <!-- Enrolled Students -->
+    <div class="col-6 col-md-4 col-xl-3">
         <div class="stat-card">
-            <div>
-                <div class="stat-label">Total Logged</div>
-                <div class="stat-value">{{ total_recorded }}</div>
+            <div class="stat-card-header">
+                <span class="stat-label">Total Enrolled</span>
+                <div class="stat-icon primary"><i class="bi bi-people-fill"></i></div>
             </div>
-            <div class="stat-icon primary"><i class="bi bi-people-fill"></i></div>
+            <div class="stat-value">{{ total_enrolled }}</div>
+            <div class="stat-meta text-muted small">Active student roster</div>
         </div>
     </div>
-    <div class="col-sm-6 col-xl-3">
+
+    <!-- Recorded Students -->
+    <div class="col-6 col-md-4 col-xl-3">
         <div class="stat-card">
-            <div>
-                <div class="stat-label">Present</div>
-                <div class="stat-value text-success">{{ present_count }}</div>
+            <div class="stat-card-header">
+                <span class="stat-label">Recorded Attendance</span>
+                <div class="stat-icon primary"><i class="bi bi-clipboard-check-fill"></i></div>
             </div>
-            <div class="stat-icon success"><i class="bi bi-check-circle-fill"></i></div>
+            <div class="stat-value">{{ total_recorded }}</div>
+            <div class="stat-meta text-muted small">Marks submitted by faculty</div>
         </div>
     </div>
-    <div class="col-sm-6 col-xl-3">
-        <div class="stat-card">
-            <div>
-                <div class="stat-label">Absent</div>
-                <div class="stat-value text-danger">{{ absent_count }}</div>
+
+    <!-- Present Count -->
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="stat-card success">
+            <div class="stat-card-header">
+                <span class="stat-label">Present</span>
+                <div class="stat-icon success"><i class="bi bi-check-circle-fill"></i></div>
             </div>
-            <div class="stat-icon danger"><i class="bi bi-x-circle-fill"></i></div>
+            <div class="stat-value text-success">{{ present_count }}</div>
+            <div class="stat-meta text-success small">On-time attendances</div>
         </div>
     </div>
-    <div class="col-sm-6 col-xl-3">
-        <div class="stat-card">
-            <div>
-                <div class="stat-label">Attendance Rate</div>
+
+    <!-- Late Count -->
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="stat-card warning">
+            <div class="stat-card-header">
+                <span class="stat-label">Late</span>
+                <div class="stat-icon warning"><i class="bi bi-clock-history"></i></div>
+            </div>
+            <div class="stat-value text-warning">{{ late_count }}</div>
+            <div class="stat-meta text-warning small">Late arrivals</div>
+        </div>
+    </div>
+
+    <!-- Explicitly Marked Absent -->
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="stat-card danger">
+            <div class="stat-card-header">
+                <span class="stat-label">Explicitly Absent</span>
+                <div class="stat-icon danger"><i class="bi bi-x-circle-fill"></i></div>
+            </div>
+            <div class="stat-value text-danger">{{ absent_count }}</div>
+            <div class="stat-meta text-danger small">Confirmed unexcused</div>
+        </div>
+    </div>
+
+    <!-- Excused Absences -->
+    <div class="col-6 col-md-4 col-xl-3">
+        <div class="stat-card info">
+            <div class="stat-card-header">
+                <span class="stat-label">Excused</span>
+                <div class="stat-icon info"><i class="bi bi-shield-check"></i></div>
+            </div>
+            <div class="stat-value text-info">{{ excused_count }}</div>
+            <div class="stat-meta text-info small">Medical/official leaves</div>
+        </div>
+    </div>
+
+    <!-- Unmarked Students -->
+    <div class="col-6 col-md-4 col-xl-3">
+        <div class="stat-card {% if unmarked_count > 0 %}warning{% else %}secondary{% endif %}">
+            <div class="stat-card-header">
+                <span class="stat-label">Unmarked Students</span>
+                <div class="stat-icon {% if unmarked_count > 0 %}warning{% else %}secondary{% endif %}">
+                    <i class="bi bi-question-circle-fill"></i>
+                </div>
+            </div>
+            <div class="stat-value {% if unmarked_count > 0 %}text-warning{% endif %}">{{ unmarked_count }}</div>
+            <div class="stat-meta text-muted small">Pending recording (not absent)</div>
+        </div>
+    </div>
+
+    <!-- Attendance Percentage Rate -->
+    <div class="col-12 col-md-4 col-xl-6">
+        <div class="stat-card {% if overall_percentage >= 80 %}success{% elif overall_percentage >= 60 %}warning{% else %}danger{% endif %}">
+            <div class="stat-card-header">
+                <span class="stat-label">Institutional Attendance Rate</span>
+                <div class="stat-icon {% if overall_percentage >= 80 %}success{% elif overall_percentage >= 60 %}warning{% else %}danger{% endif %}">
+                    <i class="bi bi-pie-chart-fill"></i>
+                </div>
+            </div>
+            <div class="d-flex align-items-baseline gap-3">
                 <div class="stat-value">{{ overall_percentage }}%</div>
+                <span class="small text-muted">(Present + Late) / Total Recorded Students</span>
             </div>
-            <div class="stat-icon warning"><i class="bi bi-pie-chart-fill"></i></div>
+            <div class="progress progress-thin mt-2">
+                <div class="progress-bar {% if overall_percentage >= 80 %}bg-success{% elif overall_percentage >= 60 %}bg-warning{% else %}bg-danger{% endif %}"
+                     role="progressbar" style="width: {{ overall_percentage }}%;"
+                     aria-valuenow="{{ overall_percentage }}" aria-valuemin="0" aria-valuemax="100">
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
-<!-- Class Breakdown Table -->
+<!-- Database-Driven Chart.js Visualizations -->
+<div class="row g-3 mb-4 no-print">
+    <!-- Status Breakdown Chart -->
+    <div class="col-lg-5">
+        <div class="card card-modern h-100">
+            <div class="card-modern-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-pie-chart text-primary me-2"></i> Daily Status Distribution</span>
+                <span class="badge bg-light text-muted border">{{ report_date|date:"M j, Y" }}</span>
+            </div>
+            <div class="card-body d-flex flex-column justify-content-center p-3">
+                <div class="chart-wrapper" style="position: relative; height: 260px;">
+                    <canvas id="dailyStatusChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Class-Wise Performance Rate Comparison Chart -->
+    <div class="col-lg-7">
+        <div class="card card-modern h-100">
+            <div class="card-modern-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-bar-chart-line text-primary me-2"></i> Class Attendance Rates Comparison</span>
+                <span class="badge bg-light text-muted border">% Rate by Classroom</span>
+            </div>
+            <div class="card-body p-3">
+                <div class="chart-wrapper" style="position: relative; height: 260px;">
+                    <canvas id="classComparisonChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 7-Day Trend Line Chart -->
+<div class="row g-3 mb-4 no-print">
+    <div class="col-12">
+        <div class="card card-modern">
+            <div class="card-modern-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-graph-up text-primary me-2"></i> 7-Day Institutional Attendance Rate Trend</span>
+                <span class="badge bg-light text-muted border">Past 7 Days</span>
+            </div>
+            <div class="card-body p-3">
+                <div class="chart-wrapper" style="position: relative; height: 220px;">
+                    <canvas id="trendChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Class Breakdown Table with Strict Distinction Between Unrecorded and Absent -->
 <div class="card card-modern mb-4">
-    <div class="card-modern-header d-flex align-items-center justify-content-between">
-        <span><i class="bi bi-table me-2 text-primary"></i> Class-wise Attendance Performance for {{ report_date|date:"F j, Y" }}</span>
-        <span class="badge bg-secondary-subtle text-secondary small">Denominator: Logged Student Records</span>
+    <div class="card-modern-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+        <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-table text-primary"></i>
+            <span class="fw-bold">Class-Wise Attendance Summaries for {{ report_date|date:"F j, Y" }}</span>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-secondary-subtle text-secondary small">
+                Unmarked != Absent
+            </span>
+            <span class="badge bg-light text-dark border">
+                {{ class_summaries|length }} Classes
+            </span>
+        </div>
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
             <table class="table table-custom table-hover align-middle mb-0">
                 <thead>
                     <tr>
-                        <th>Class & Section</th>
-                        <th>Enrolled Students</th>
-                        <th>Logged Records</th>
-                        <th>Present</th>
-                        <th>Late</th>
-                        <th>Absent</th>
-                        <th class="text-end">Attendance Rate</th>
+                        <th scope="col">Class & Section</th>
+                        <th scope="col">Academic Year</th>
+                        <th scope="col">Total Enrolled</th>
+                        <th scope="col">Recorded Attendance</th>
+                        <th scope="col">Present</th>
+                        <th scope="col">Late</th>
+                        <th scope="col">Excused</th>
+                        <th scope="col">Explicitly Absent</th>
+                        <th scope="col">Unmarked Students</th>
+                        <th scope="col">Status</th>
+                        <th scope="col" class="text-end">Attendance Rate</th>
+                        <th scope="col" class="no-print text-end">Action</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for item in class_summaries %}
                         <tr>
-                            <td class="fw-semibold text-dark">{{ item.classroom.display_name }}</td>
-                            <td><span class="badge bg-light text-dark border">{{ item.total_enrolled }}</span></td>
-                            <td>{{ item.total_recorded }}</td>
+                            <!-- Class Name -->
+                            <td class="fw-bold text-dark">
+                                <i class="bi bi-mortarboard text-primary me-1"></i>
+                                {{ item.classroom.display_name }}
+                            </td>
+                            <!-- Academic Year -->
+                            <td><span class="badge bg-light text-muted border">{{ item.classroom.academic_year.name }}</span></td>
+                            <!-- Total Enrolled -->
+                            <td><span class="badge bg-light text-dark border fw-bold">{{ item.total_enrolled }}</span></td>
+                            <!-- Recorded Attendance -->
+                            <td>
+                                <span class="fw-semibold {% if item.total_recorded == 0 %}text-muted{% else %}text-primary{% endif %}">
+                                    {{ item.total_recorded }}
+                                </span>
+                            </td>
+                            <!-- Present -->
                             <td class="text-success fw-bold">{{ item.present }}</td>
+                            <!-- Late -->
                             <td class="text-warning fw-semibold">{{ item.late }}</td>
-                            <td class="text-danger fw-bold">{{ item.absent }}</td>
+                            <!-- Excused -->
+                            <td class="text-info fw-semibold">{{ item.excused }}</td>
+                            <!-- Explicitly Marked Absent -->
+                            <td>
+                                {% if item.absent > 0 %}
+                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle fw-bold">
+                                        {{ item.absent }}
+                                    </span>
+                                {% else %}
+                                    <span class="text-muted small">0</span>
+                                {% endif %}
+                            </td>
+                            <!-- Unmarked Students (Distinguished from Absent) -->
+                            <td>
+                                {% if item.unmarked > 0 %}
+                                    <span class="badge bg-warning-subtle text-warning border border-warning-subtle fw-bold" title="Attendance has not been registered for these students">
+                                        <i class="bi bi-exclamation-triangle-fill me-1"></i> {{ item.unmarked }} Unmarked
+                                    </span>
+                                {% else %}
+                                    <span class="text-muted small">0</span>
+                                {% endif %}
+                            </td>
+                            <!-- Recording Status -->
+                            <td>
+                                {% if item.status_label == 'Not Recorded' %}
+                                    <span class="badge bg-secondary-subtle text-secondary border px-2 py-1">
+                                        <i class="bi bi-clock me-1"></i> Not Recorded
+                                    </span>
+                                {% elif item.status_label == 'Partially Recorded' %}
+                                    <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1">
+                                        <i class="bi bi-dash-circle me-1"></i> Partially Recorded
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                                        <i class="bi bi-check2-all me-1"></i> Completed
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <!-- Attendance Rate % -->
                             <td class="text-end">
                                 {% if item.percentage is not None %}
                                     <span class="badge {% if item.percentage >= 80 %}bg-success-subtle text-success{% elif item.percentage >= 60 %}bg-warning-subtle text-warning{% else %}bg-danger-subtle text-danger{% endif %} fs-6">
                                         {{ item.percentage }}%
                                     </span>
                                 {% else %}
-                                    <span class="text-muted small">No logs yet</span>
+                                    <span class="text-muted small">Not Recorded</span>
+                                {% endif %}
+                            </td>
+                            <!-- Action button -->
+                            <td class="no-print text-end">
+                                {% if item.status_label == 'Not Recorded' or item.unmarked > 0 %}
+                                    <a href="{% url 'attendance:take_attendance' %}?classroom_id={{ item.classroom.id }}&date={{ report_date|date:'Y-m-d' }}" class="btn btn-outline-primary btn-sm py-0 px-2 smaller">
+                                        <i class="bi bi-pencil me-1"></i> Record
+                                    </a>
+                                {% else %}
+                                    <a href="{% url 'attendance:attendance_list' %}?class_id={{ item.classroom.id }}&date={{ report_date|date:'Y-m-d' }}" class="btn btn-outline-secondary btn-sm py-0 px-2 smaller">
+                                        Logs
+                                    </a>
                                 {% endif %}
                             </td>
                         </tr>
                     {% empty %}
                         <tr>
-                            <td colspan="7" class="text-center py-4 text-muted">No classroom data available.</td>
+                            <td colspan="12" class="text-center py-5 text-muted">
+                                <i class="bi bi-calendar-x fs-2 d-block mb-2 text-secondary"></i>
+                                <h6>No Classroom Data Available</h6>
+                                <p class="small mb-0">No active classes were found matching your current permission scope.</p>
+                            </td>
                         </tr>
                     {% endfor %}
                 </tbody>
@@ -105,4 +341,155 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Real Database Chart Data Scripts -->
+{{ status_chart_data|json_script:"status-chart-data" }}
+{{ class_chart_labels|json_script:"class-chart-labels" }}
+{{ class_chart_data|json_script:"class-chart-data" }}
+{{ trend_labels|json_script:"trend-chart-labels" }}
+{{ trend_percentages|json_script:"trend-chart-percentages" }}
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    function getJsonData(elementId, fallback) {
+        const el = document.getElementById(elementId);
+        if (!el) return fallback;
+        try {
+            return JSON.parse(el.textContent);
+        } catch (e) {
+            console.error("Failed to parse JSON for " + elementId, e);
+            return fallback;
+        }
+    }
+
+    // 1. Daily Status Doughnut Chart
+    const statusData = getJsonData('status-chart-data', { labels: [], data: [] });
+    const statusCtx = document.getElementById('dailyStatusChart');
+    if (statusCtx && typeof Chart !== 'undefined') {
+        const hasData = statusData.data.some(v => v > 0);
+        new Chart(statusCtx, {
+            type: 'doughnut',
+            data: {
+                labels: statusData.labels,
+                datasets: [{
+                    data: hasData ? statusData.data : [1],
+                    backgroundColor: hasData
+                        ? ['#15803d', '#b45309', '#0284c7', '#b91c1c', '#64748b']
+                        : ['#e2e8f0'],
+                    borderWidth: 2,
+                    borderColor: '#ffffff',
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { boxWidth: 12, font: { size: 11 } }
+                    },
+                    tooltip: {
+                        enabled: hasData
+                    }
+                },
+                cutout: '65%'
+            }
+        });
+    }
+
+    // 2. Class Comparison Bar Chart
+    const classLabels = getJsonData('class-chart-labels', []);
+    const classData = getJsonData('class-chart-data', []);
+    const classCtx = document.getElementById('classComparisonChart');
+    if (classCtx && typeof Chart !== 'undefined') {
+        new Chart(classCtx, {
+            type: 'bar',
+            data: {
+                labels: classLabels.length > 0 ? classLabels : ['No data recorded yet'],
+                datasets: [{
+                    label: 'Attendance Rate (%)',
+                    data: classData.length > 0 ? classData : [0],
+                    backgroundColor: '#3730a3',
+                    borderRadius: 6,
+                    maxBarThickness: 36,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        ticks: {
+                            callback: function(v) { return v + '%'; }
+                        }
+                    },
+                    x: {
+                        grid: { display: false }
+                    }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) { return ctx.parsed.y + '% Attendance'; }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // 3. 7-Day Trend Line Chart
+    const trendLabels = getJsonData('trend-chart-labels', []);
+    const trendData = getJsonData('trend-chart-percentages', []);
+    const trendCtx = document.getElementById('trendChart');
+    if (trendCtx && typeof Chart !== 'undefined') {
+        new Chart(trendCtx, {
+            type: 'line',
+            data: {
+                labels: trendLabels,
+                datasets: [{
+                    label: 'Attendance Rate (%)',
+                    data: trendData,
+                    borderColor: '#3730a3',
+                    backgroundColor: 'rgba(55, 48, 163, 0.08)',
+                    tension: 0.35,
+                    fill: true,
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: '#3730a3',
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        ticks: {
+                            callback: function(v) { return v + '%'; }
+                        }
+                    },
+                    x: {
+                        grid: { display: false }
+                    }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) { return ctx.parsed.y + '% Attendance'; }
+                        }
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
 {% endblock %}

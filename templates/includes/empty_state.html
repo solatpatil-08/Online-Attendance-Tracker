@@ -1,0 +1,22 @@
+<div class="empty-state py-5 px-3 text-center">
+    <div class="empty-state-icon mb-3" aria-hidden="true">
+        <i class="bi {{ icon|default:'bi-inbox' }}"></i>
+    </div>
+    <h5 class="fw-bold text-dark mb-2">{{ title|default:'No Records Found' }}</h5>
+    <p class="text-muted small mx-auto mb-3" style="max-width: 480px;">
+        {{ message|default:'There are no records matching your current filter criteria or database selection.' }}
+    </p>
+    {% if action_url and action_text %}
+        <div class="d-inline-flex flex-wrap justify-content-center gap-2">
+            <a href="{{ action_url }}" class="btn btn-primary btn-sm px-3 shadow-xs">
+                {% if action_icon %}<i class="bi {{ action_icon }} me-1" aria-hidden="true"></i>{% endif %}
+                {{ action_text }}
+            </a>
+            {% if secondary_url and secondary_text %}
+                <a href="{{ secondary_url }}" class="btn btn-outline-secondary btn-sm px-3">
+                    {{ secondary_text }}
+                </a>
+            {% endif %}
+        </div>
+    {% endif %}
+</div>

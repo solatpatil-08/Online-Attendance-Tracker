@@ -1,0 +1,69 @@
+{% if is_paginated %}
+<div class="card-footer bg-white border-top py-3 d-flex flex-column flex-md-row justify-content-between align-items-center gap-2 no-print">
+    <div class="small text-muted text-center text-md-start">
+        Showing <span class="fw-semibold text-dark">{{ page_obj.start_index }}</span> to <span class="fw-semibold text-dark">{{ page_obj.end_index }}</span> of <span class="fw-semibold text-dark">{{ paginator.count }}</span> {{ entity_name|default:"entries" }}
+    </div>
+    <nav aria-label="{{ entity_name|default:'Items'|capfirst }} pagination">
+        <ul class="pagination pagination-sm mb-0 flex-wrap justify-content-center">
+            <!-- First Page -->
+            {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page=1{% if query_string %}&{{ query_string }}{% endif %}" aria-label="Go to first page">
+                        <i class="bi bi-chevron-double-left" aria-hidden="true"></i>
+                        <span class="visually-hidden">First</span>
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if query_string %}&{{ query_string }}{% endif %}" aria-label="Go to previous page">
+                        <i class="bi bi-chevron-left" aria-hidden="true"></i>
+                        <span class="visually-hidden">Previous</span>
+                    </a>
+                </li>
+            {% else %}
+                <li class="page-item disabled" aria-disabled="true">
+                    <span class="page-link"><i class="bi bi-chevron-double-left" aria-hidden="true"></i></span>
+                </li>
+                <li class="page-item disabled" aria-disabled="true">
+                    <span class="page-link"><i class="bi bi-chevron-left" aria-hidden="true"></i></span>
+                </li>
+            {% endif %}
+
+            <!-- Page Number Window -->
+            {% for num in paginator.page_range %}
+                {% if page_obj.number == num %}
+                    <li class="page-item active" aria-current="page">
+                        <span class="page-link">{{ num }}</span>
+                    </li>
+                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}{% if query_string %}&{{ query_string }}{% endif %}" aria-label="Page {{ num }}">{{ num }}</a>
+                    </li>
+                {% endif %}
+            {% endfor %}
+
+            <!-- Next and Last Page -->
+            {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if query_string %}&{{ query_string }}{% endif %}" aria-label="Go to next page">
+                        <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                        <span class="visually-hidden">Next</span>
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ paginator.num_pages }}{% if query_string %}&{{ query_string }}{% endif %}" aria-label="Go to last page">
+                        <i class="bi bi-chevron-double-right" aria-hidden="true"></i>
+                        <span class="visually-hidden">Last</span>
+                    </a>
+                </li>
+            {% else %}
+                <li class="page-item disabled" aria-disabled="true">
+                    <span class="page-link"><i class="bi bi-chevron-right" aria-hidden="true"></i></span>
+                </li>
+                <li class="page-item disabled" aria-disabled="true">
+                    <span class="page-link"><i class="bi bi-chevron-double-right" aria-hidden="true"></i></span>
+                </li>
+            {% endif %}
+        </ul>
+    </nav>
+</div>
+{% endif %}
