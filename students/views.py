@@ -1,6 +1,7 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.core.exceptions import PermissionDenied
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, View
 from django.urls import reverse_lazy, reverse
@@ -278,6 +279,6 @@ class StudentToggleStatusView(AdminRequiredMixin, View):
 
         # Redirect to next or detail
         next_url = request.POST.get('next')
-        if next_url:
+        if next_url and url_has_allowed_host_and_scheme(url=next_url, allowed_hosts={request.get_host()}):
             return redirect(next_url)
         return redirect('students:student_detail', pk=student.pk)

@@ -4,6 +4,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.views.generic import ListView, FormView, View
 from django.urls import reverse_lazy
+from django.utils.http import url_has_allowed_host_and_scheme
 
 from .forms import UserLoginForm, UserProfileForm, TeacherProfileForm, TeacherCreationForm
 from .models import User, TeacherProfile
@@ -33,7 +34,8 @@ class UserLoginView(LoginView):
         return super().form_valid(form)
 
     def get_success_url(self):
-        return reverse_lazy('dashboard:index')
+        return self.get_redirect_url() or reverse_lazy('dashboard:index')
+
 
 
 class UserLogoutView(LogoutView):
@@ -265,7 +267,7 @@ class TeacherToggleStatusView(AdminRequiredMixin, View):
         messages.info(request, f"Teacher account '{teacher.username}' has been {status_label}.")
 
         next_url = request.POST.get('next')
-        if next_url:
+        if next_url and url_has_allowed_host_and_scheme(url=next_url, allowed_hosts={request.get_host()}):
             return redirect(next_url)
         return redirect('accounts:teacher_detail', pk=teacher.pk)
 

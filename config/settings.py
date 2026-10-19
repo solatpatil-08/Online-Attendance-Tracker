@@ -15,6 +15,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Load environment variables from .env file
 load_dotenv(BASE_DIR / '.env')
 
+from django.core.exceptions import ImproperlyConfigured
+
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.getenv(
     'SECRET_KEY',
@@ -24,6 +26,11 @@ SECRET_KEY = os.getenv(
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', 'True').lower() in ('true', '1', 't')
 
+if not DEBUG and (not SECRET_KEY or SECRET_KEY.startswith('django-insecure-')):
+    raise ImproperlyConfigured(
+        "In production environments (DEBUG=False), a strong SECRET_KEY environment variable must be provided."
+    )
+
 ALLOWED_HOSTS = [
     host.strip()
     for host in os.getenv('ALLOWED_HOSTS', '127.0.0.1,localhost,testserver').split(',')
@@ -31,6 +38,7 @@ ALLOWED_HOSTS = [
 ]
 if DEBUG and 'testserver' not in ALLOWED_HOSTS:
     ALLOWED_HOSTS.append('testserver')
+
 
 
 
@@ -180,3 +188,25 @@ MESSAGE_TAGS = {
 MAX_BACKDATED_ATTENDANCE_DAYS = int(os.getenv('MAX_BACKDATED_ATTENDANCE_DAYS', 7))
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Session and Cookie Security Configuration
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_AGE = int(os.getenv('SESSION_COOKIE_AGE', 1209600))  # 14 days default
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+
+if not DEBUG:
+    # Production Security Hardening
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    X_FRAME_OPTIONS = 'DENY'
+    SECURE_HSTS_SECONDS = int(os.getenv('SECURE_HSTS_SECONDS', 31536000))
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SECURE_SSL_REDIRECT = os.getenv('SECURE_SSL_REDIRECT', 'False').lower() in ('true', '1', 't')
+else:
+    # Development security defaults
+    X_FRAME_OPTIONS = 'DENY'
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+

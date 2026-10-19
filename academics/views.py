@@ -1,6 +1,7 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, View
 from django.urls import reverse_lazy, reverse
 from django.contrib import messages
@@ -165,13 +166,23 @@ class ClassroomToggleStatusView(AdminRequiredMixin, View):
     """
     def post(self, request, pk):
         classroom = get_object_or_404(Classroom, pk=pk)
-        classroom.is_active = not classroom.is_active
-        classroom.save(update_fields=['is_active', 'updated_at'])
-        status_label = "activated" if classroom.is_active else "deactivated"
-        messages.info(request, f"Classroom '{classroom.display_name}' has been {status_label}.")
+        if not classroom.is_active:
+            if classroom.class_teacher and not classroom.class_teacher.is_active:
+                messages.error(
+                    request,
+                    f"Cannot activate classroom '{classroom.display_name}' because assigned class teacher ({classroom.class_teacher.get_full_name() or classroom.class_teacher.username}) is inactive. Please edit classroom and assign an active teacher first."
+                )
+                return redirect('academics:classroom_detail', pk=classroom.pk)
+            classroom.is_active = True
+            classroom.save(update_fields=['is_active', 'updated_at'])
+            messages.success(request, f"Classroom '{classroom.display_name}' has been activated.")
+        else:
+            classroom.is_active = False
+            classroom.save(update_fields=['is_active', 'updated_at'])
+            messages.warning(request, f"Classroom '{classroom.display_name}' has been deactivated.")
 
         next_url = request.POST.get('next')
-        if next_url:
+        if next_url and url_has_allowed_host_and_scheme(url=next_url, allowed_hosts={request.get_host()}):
             return redirect(next_url)
         return redirect('academics:classroom_detail', pk=classroom.pk)
 
@@ -378,7 +389,7 @@ class SubjectToggleStatusView(AdminRequiredMixin, View):
         messages.info(request, f"Subject '{subject.name}' ({subject.code}) has been {status_label}.")
 
         next_url = request.POST.get('next')
-        if next_url:
+        if next_url and url_has_allowed_host_and_scheme(url=next_url, allowed_hosts={request.get_host()}):
             return redirect(next_url)
         return redirect('academics:subject_detail', pk=subject.pk)
 
@@ -565,6 +576,6 @@ class AssignmentDeleteView(AdminRequiredMixin, View):
         assignment.delete()
         messages.success(request, f"Successfully removed teaching assignment: {info}")
         next_url = request.POST.get('next')
-        if next_url:
+        if next_url and url_has_allowed_host_and_scheme(url=next_url, allowed_hosts={request.get_host()}):
             return redirect(next_url)
         return redirect('academics:assignment_list')

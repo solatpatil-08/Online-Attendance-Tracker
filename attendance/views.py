@@ -24,12 +24,14 @@ from students.models import Student
 def sanitize_csv_cell(value):
     """
     Guards against CSV Formula Injection (DDE injection).
-    If a string starts with '=', '+', '-', '@', '\t', or '\r', prepends a single quote "'".
+    If a string starts with '=', '+', '-', '@', '|', '%', '\t', or '\r' (including after leading whitespace),
+    prepends a single quote "'" to neutralize formula interpretation in Excel/Calc.
     """
     if value is None:
         return ""
     str_val = str(value)
-    if str_val and str_val[0] in ('=', '+', '-', '@', '\t', '\r'):
+    stripped = str_val.lstrip()
+    if stripped and stripped[0] in ('=', '+', '-', '@', '|', '%', '\t', '\r'):
         return f"'{str_val}"
     return str_val
 
@@ -1091,7 +1093,15 @@ class AttendanceTakeView(View):
                 f"Attendance for {classroom.display_name} &bull; {subject.name} on {date.strftime('%b %d, %Y')} was successfully {action_verb} ({len(student_records)} students: {p_cnt} Present, {a_cnt} Absent, {l_cnt} Late, {e_cnt} Excused)."
             )
         except ValidationError as e:
-            messages.error(request, f"Validation error while saving attendance: {e.message if hasattr(e, 'message') else e}")
+            if hasattr(e, 'message_dict'):
+                err_details = '; '.join([f"{k}: {', '.join(v)}" for k, v in e.message_dict.items()])
+            elif hasattr(e, 'messages'):
+                err_details = '; '.join(e.messages)
+            elif hasattr(e, 'message'):
+                err_details = e.message
+            else:
+                err_details = str(e)
+            messages.error(request, f"Validation error while saving attendance: {err_details}")
             params = self.get_session_parameters(request)
             counts = self.compute_summary_counts(students)
             context = {

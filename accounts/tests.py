@@ -7,6 +7,7 @@ from django.contrib.auth import get_user_model
 from academics.models import AcademicYear, Classroom, Subject, ClassSubjectAssignment
 from students.models import Student
 from attendance.models import Attendance, AttendanceSession
+from attendance.views import sanitize_csv_cell
 from accounts.models import User, TeacherProfile
 from accounts.signals import assign_role_permissions
 
@@ -544,5 +545,220 @@ class SeedDemoDataCommandTests(TestCase):
         # Providing confirm_production succeeds
         call_command('seed_demo_data', days=1, confirm_production=True, stdout=out)
         self.assertTrue(User.objects.filter(username='admin_rajesh').exists())
+
+
+class SecurityAndQAAuditTests(TestCase):
+    def setUp(self):
+        assign_role_permissions()
+        self.admin = User.objects.create_superuser(
+            username='qa_admin',
+            email='admin@qa.local',
+            password='AdminPassword123!',
+            role=User.Role.ADMIN
+        )
+        self.teacher = User.objects.create_user(
+            username='qa_teacher',
+            email='teacher@qa.local',
+            password='TeacherPassword123!',
+            role=User.Role.TEACHER
+        )
+        TeacherProfile.objects.create(
+            user=self.teacher,
+            employee_id='EMP-QA-01',
+            department='Science'
+        )
+        self.year = AcademicYear.objects.create(
+            name='2026-2027',
+            start_date=datetime.date(2026, 6, 1),
+            end_date=datetime.date(2027, 4, 30),
+            is_current=True
+        )
+        self.classroom = Classroom.objects.create(
+            name='Grade 10',
+            section='A',
+            academic_year=self.year,
+            class_teacher=self.teacher
+        )
+        self.subject = Subject.objects.create(
+            name='Physics',
+            code='PHY-101'
+        )
+        self.assignment = ClassSubjectAssignment.objects.create(
+            classroom=self.classroom,
+            subject=self.subject,
+            teacher=self.teacher
+        )
+        self.student = Student.objects.create(
+            student_id='STU-QA-001',
+            first_name='Aarav',
+            last_name='Sharma',
+            classroom=self.classroom,
+            roll_number=1,
+            enrollment_date=datetime.date(2026, 6, 1)
+        )
+
+    def test_login_invalid_credentials_returns_error(self):
+        """Invalid username or password produces clean user-facing error message."""
+        resp = self.client.post(reverse('accounts:login'), {
+            'username': 'non_existent_user',
+            'password': 'AnyPassword123!',
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'Invalid credentials')
+
+        resp = self.client.post(reverse('accounts:login'), {
+            'username': 'qa_admin',
+            'password': 'WrongPassword123!',
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'Invalid credentials')
+
+    def test_login_remember_me_session_duration(self):
+        """Remember me sets persistent 14-day expiry; normal login expires on browser close."""
+        resp = self.client.post(reverse('accounts:login'), {
+            'username': 'qa_admin',
+            'password': 'AdminPassword123!',
+            'remember_me': 'on',
+        })
+        self.assertEqual(resp.status_code, 302)
+        self.assertFalse(self.client.session.get_expire_at_browser_close())
+        self.assertEqual(self.client.session.get_expiry_age(), 1209600)
+
+        self.client.logout()
+        resp = self.client.post(reverse('accounts:login'), {
+            'username': 'qa_admin',
+            'password': 'AdminPassword123!',
+        })
+        self.assertEqual(resp.status_code, 302)
+        self.assertTrue(self.client.session.get_expire_at_browser_close())
+
+    def test_login_redirect_to_requested_next_page(self):
+        """Unauthenticated user accessing a protected page is redirected to login, then redirected back to target after login."""
+        target_url = reverse('students:student_list')
+        resp = self.client.get(target_url)
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn(f"next={target_url}", resp.url)
+
+        login_resp = self.client.post(f"{reverse('accounts:login')}?next={target_url}", {
+            'username': 'qa_admin',
+            'password': 'AdminPassword123!',
+        })
+        self.assertEqual(login_resp.status_code, 302)
+        self.assertEqual(login_resp.url, target_url)
+
+    def test_open_redirect_attacks_neutralized(self):
+        """Malicious external next_url targets are rejected across all status toggles and delete actions."""
+        self.client.login(username='qa_admin', password='AdminPassword123!')
+        malicious_urls = ['https://evil-attacker.com', '//malicious.org/phish', 'http://attacker.com']
+
+        for evil_url in malicious_urls:
+            # 1. Teacher toggle status
+            resp = self.client.post(
+                reverse('accounts:teacher_toggle_status', kwargs={'pk': self.teacher.pk}),
+                {'next': evil_url}
+            )
+            self.assertEqual(resp.status_code, 302)
+            self.assertNotEqual(resp.url, evil_url)
+            self.assertFalse(resp.url.startswith('http://') or resp.url.startswith('https://') or resp.url.startswith('//'))
+
+            # 2. Student toggle status
+            resp2 = self.client.post(
+                reverse('students:student_toggle_status', kwargs={'pk': self.student.pk}),
+                {'next': evil_url}
+            )
+            self.assertEqual(resp2.status_code, 302)
+            self.assertNotEqual(resp2.url, evil_url)
+
+            # 3. Classroom toggle status
+            resp3 = self.client.post(
+                reverse('academics:classroom_toggle_status', kwargs={'pk': self.classroom.pk}),
+                {'next': evil_url}
+            )
+            self.assertEqual(resp3.status_code, 302)
+            self.assertNotEqual(resp3.url, evil_url)
+
+            # 4. Subject toggle status
+            resp4 = self.client.post(
+                reverse('academics:subject_toggle_status', kwargs={'pk': self.subject.pk}),
+                {'next': evil_url}
+            )
+            self.assertEqual(resp4.status_code, 302)
+            self.assertNotEqual(resp4.url, evil_url)
+
+    def test_csv_formula_injection_defense(self):
+        """Dangerous spreadsheet formula characters (=, +, -, @, |, %, tab) are neutralized with prepended quote."""
+        malicious_inputs = [
+            ('=1+1', "'=1+1"),
+            ('+cmd|/C calc', "'+cmd|/C calc"),
+            ('-2+3*4', "'-2+3*4"),
+            ('@SUM(A1:B10)', "'@SUM(A1:B10)"),
+            ('|cmd', "'|cmd"),
+            ('%calc', "'%calc"),
+            ('\t=1+1', "'\t=1+1"),
+            ('   =AVERAGE(A1:A5)', "'   =AVERAGE(A1:A5)"),
+            ('Safe Student Name', 'Safe Student Name'),
+            ('Normal Remarks', 'Normal Remarks'),
+        ]
+        for raw, expected in malicious_inputs:
+            self.assertEqual(sanitize_csv_cell(raw), expected)
+
+    def test_student_report_scoped_by_enrollment_date(self):
+        """Attendance sessions dated prior to a student's enrollment date are excluded from attendance report statistics."""
+        self.client.login(username='qa_admin', password='AdminPassword123!')
+
+        prior_session = AttendanceSession.objects.create(
+            classroom=self.classroom,
+            subject=self.subject,
+            date=datetime.date(2026, 5, 20),
+            recorded_by=self.teacher
+        )
+        Attendance.objects.create(
+            session=prior_session,
+            student=self.student,
+            classroom=self.classroom,
+            subject=self.subject,
+            date=datetime.date(2026, 5, 20),
+            status=Attendance.Status.ABSENT,
+            recorded_by=self.teacher
+        )
+
+        valid_session = AttendanceSession.objects.create(
+            classroom=self.classroom,
+            subject=self.subject,
+            date=datetime.date(2026, 6, 1),
+            recorded_by=self.teacher
+        )
+        Attendance.objects.create(
+            session=valid_session,
+            student=self.student,
+            classroom=self.classroom,
+            subject=self.subject,
+            date=datetime.date(2026, 6, 1),
+            status=Attendance.Status.PRESENT,
+            recorded_by=self.teacher
+        )
+
+        resp = self.client.get(reverse('attendance:student_report_detail', kwargs={'pk': self.student.pk}))
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.context['total_applicable'], 1)
+        self.assertEqual(resp.context['present_count'], 1)
+        self.assertEqual(resp.context['absent_count'], 0)
+        self.assertEqual(resp.context['attendance_percentage'], 100.0)
+
+    def test_empty_reports_and_filters_gracefully_render(self):
+        """Filtering reports with zero matching records renders empty state cleanly without 500 error."""
+        self.client.login(username='qa_admin', password='AdminPassword123!')
+
+        resp = self.client.get(reverse('attendance:reports') + '?date=1995-01-01')
+        self.assertEqual(resp.status_code, 200)
+
+        resp2 = self.client.get(reverse('attendance:student_report_list') + '?student=NonExistentStudentName999')
+        self.assertEqual(resp2.status_code, 200)
+
+        resp3 = self.client.get(reverse('attendance:attendance_list') + '?student=NonExistent999')
+        self.assertEqual(resp3.status_code, 200)
+        self.assertEqual(resp3.context['total_records'], 0)
+        self.assertEqual(resp3.context['attendance_percentage'], 0)
+
 
 

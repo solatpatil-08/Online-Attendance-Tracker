@@ -106,7 +106,7 @@ class Classroom(models.Model):
             raise ValidationError({
                 'class_teacher': "Assigned class teacher must possess the 'TEACHER' role."
             })
-        if self.class_teacher and not self.class_teacher.is_active:
+        if self.is_active and self.class_teacher and not self.class_teacher.is_active:
             raise ValidationError({
                 'class_teacher': "Cannot assign an inactive teacher as class teacher."
             })
