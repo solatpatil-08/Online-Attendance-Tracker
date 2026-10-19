@@ -1,9 +1,12 @@
+from io import StringIO
 import datetime
-from django.test import TestCase, Client
+from django.test import TestCase, Client, override_settings
 from django.urls import reverse
+from django.core.management import call_command, CommandError
 from django.contrib.auth import get_user_model
 from academics.models import AcademicYear, Classroom, Subject, ClassSubjectAssignment
 from students.models import Student
+from attendance.models import Attendance, AttendanceSession
 from accounts.models import User, TeacherProfile
 from accounts.signals import assign_role_permissions
 
@@ -456,4 +459,90 @@ class AuthenticationAndSecurityTests(TestCase):
         for url in forbidden_urls:
             resp = self.client.get(url)
             self.assertEqual(resp.status_code, 403)
+
+
+@override_settings(DEBUG=True)
+class SeedDemoDataCommandTests(TestCase):
+    def setUp(self):
+        assign_role_permissions()
+
+    def test_seed_demo_data_command_execution(self):
+        """seed_demo_data successfully creates accounts, classes, subjects, students, and attendance."""
+        out = StringIO()
+        call_command('seed_demo_data', days=3, stdout=out)
+
+        # 3 Admins
+        self.assertEqual(User.objects.filter(username__startswith='admin_').count(), 3)
+        admin_rajesh = User.objects.get(username='admin_rajesh')
+        self.assertTrue(admin_rajesh.is_administrator)
+        self.assertTrue(admin_rajesh.is_superuser)
+        self.assertTrue(admin_rajesh.check_password('DemoPass@123'))
+
+        # 10 Teachers
+        self.assertEqual(User.objects.filter(username__startswith='teacher_').count(), 10)
+        self.assertEqual(TeacherProfile.objects.filter(employee_id__startswith='EMP-T').count(), 10)
+        teacher_sneha = User.objects.get(username='teacher_sneha')
+        self.assertTrue(teacher_sneha.is_teacher_user)
+        self.assertEqual(teacher_sneha.teacher_profile.department, 'Mathematics')
+        self.assertTrue(teacher_sneha.check_password('DemoPass@123'))
+
+        # 8 Classrooms
+        self.assertEqual(Classroom.objects.filter(academic_year__name='2026-2027').count(), 8)
+
+        # 10 Subjects
+        self.assertEqual(Subject.objects.filter(code__in=[
+            'MATH-01', 'PHY-01', 'CHEM-01', 'BIO-01', 'ENG-01',
+            'HIN-01', 'SOC-01', 'CS-01', 'EVS-01', 'ECON-01'
+        ]).count(), 10)
+
+        # 200 Students
+        self.assertEqual(Student.objects.filter(student_id__startswith='IND-2026-').count(), 200)
+        first_student = Student.objects.get(student_id='IND-2026-0001')
+        self.assertEqual(first_student.roll_number, 1)
+        self.assertEqual(first_student.classroom.name, 'Class 8')
+        self.assertEqual(first_student.classroom.section, 'A')
+
+        # Attendance records
+        self.assertTrue(AttendanceSession.objects.filter(classroom__name='Class 8').exists())
+        self.assertTrue(Attendance.objects.filter(student__student_id__startswith='IND-2026-').exists())
+
+    def test_seed_demo_data_idempotency(self):
+        """Calling seed_demo_data multiple times is safe and maintains identical record counts."""
+        out = StringIO()
+        call_command('seed_demo_data', days=2, stdout=out)
+        first_student_count = Student.objects.filter(student_id__startswith='IND-2026-').count()
+        first_session_count = AttendanceSession.objects.count()
+        first_att_count = Attendance.objects.count()
+
+        # Run second time
+        call_command('seed_demo_data', days=2, stdout=out)
+        self.assertEqual(Student.objects.filter(student_id__startswith='IND-2026-').count(), first_student_count)
+        self.assertEqual(AttendanceSession.objects.count(), first_session_count)
+        self.assertEqual(Attendance.objects.count(), first_att_count)
+
+    def test_seed_demo_data_reset(self):
+        """--reset cleanly purges all demo-tagged data while preserving non-demo records."""
+        keep_user = User.objects.create_user(username='custom_user', email='custom@domain.local', password='pwd')
+        out = StringIO()
+        call_command('seed_demo_data', days=2, stdout=out)
+        self.assertTrue(Student.objects.filter(student_id__startswith='IND-2026-').exists())
+
+        # Reset demo data
+        call_command('seed_demo_data', reset=True, stdout=out)
+        self.assertFalse(Student.objects.filter(student_id__startswith='IND-2026-').exists())
+        self.assertFalse(User.objects.filter(username__startswith='teacher_').exists())
+        self.assertFalse(User.objects.filter(username__startswith='admin_').exists())
+        self.assertTrue(User.objects.filter(pk=keep_user.pk).exists())
+
+    @override_settings(DEBUG=False)
+    def test_seed_demo_data_production_guard(self):
+        """When DEBUG is False, seed_demo_data requires explicit --confirm-production."""
+        out = StringIO()
+        with self.assertRaises(CommandError):
+            call_command('seed_demo_data', days=1, stdout=out)
+
+        # Providing confirm_production succeeds
+        call_command('seed_demo_data', days=1, confirm_production=True, stdout=out)
+        self.assertTrue(User.objects.filter(username='admin_rajesh').exists())
+
 
