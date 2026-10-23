@@ -39,6 +39,23 @@ if os.getenv('VERCEL'):
         admin_email = os.getenv('DJANGO_SUPERUSER_EMAIL') or os.getenv('ADMIN_EMAIL', 'admin@attendance.local')
 
         User = get_user_model()
+
+        # Ensure default administrator 'admin' exists for institutional demonstration
+        if not User.objects.filter(username='admin').exists():
+            default_admin = User.objects.create(
+                username='admin',
+                email='admin@school.demo',
+                role=User.Role.ADMIN,
+                is_staff=True,
+                is_superuser=True,
+                is_active=True,
+                first_name='System',
+                last_name='Administrator',
+            )
+            default_admin.set_password('DemoPass@123')
+            default_admin.save()
+            logger.info("Created default administrator: admin")
+
         if admin_username and admin_password:
             admin_user, created = User.objects.get_or_create(
                 username=admin_username.strip(),

@@ -184,9 +184,10 @@ elif os.getenv('VERCEL'):
         should_copy = not tmp_db.exists()
         if not should_copy:
             try:
-                should_copy = tmp_db.stat().st_size < bundled_db.stat().st_size
+                # Update if bundled database file is newer or different in size
+                should_copy = (bundled_db.stat().st_mtime > tmp_db.stat().st_mtime) or (bundled_db.stat().st_size != tmp_db.stat().st_size)
             except Exception:
-                pass
+                should_copy = False
         if should_copy:
             try:
                 shutil.copy2(bundled_db, tmp_db)
