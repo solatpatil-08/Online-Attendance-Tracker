@@ -180,11 +180,18 @@ elif os.getenv('VERCEL'):
     import shutil
     tmp_db = Path('/tmp') / 'db.sqlite3'
     bundled_db = BASE_DIR / 'db.sqlite3'
-    if bundled_db.exists() and not tmp_db.exists():
-        try:
-            shutil.copy2(bundled_db, tmp_db)
-        except Exception:
-            pass
+    if bundled_db.exists():
+        should_copy = not tmp_db.exists()
+        if not should_copy:
+            try:
+                should_copy = tmp_db.stat().st_size < bundled_db.stat().st_size
+            except Exception:
+                pass
+        if should_copy:
+            try:
+                shutil.copy2(bundled_db, tmp_db)
+            except Exception:
+                pass
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',

@@ -37,7 +37,8 @@ venv.bak/
 # ==============================================================================
 *.log
 local_settings.py
-db.sqlite3
+# db.sqlite3 bundled with demo dataset for Vercel deployment
+!db.sqlite3
 db.sqlite3-journal
 db.sqlite3-shm
 db.sqlite3-wal
