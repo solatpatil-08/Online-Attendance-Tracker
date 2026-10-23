@@ -783,4 +783,150 @@ class SecurityAndQAAuditTests(TestCase):
         self.assertEqual(resp3.context['attendance_percentage'], 0)
 
 
+class DedicatedAuthenticationPipelineTests(TestCase):
+    """
+    Validates all requirements of the Phase 6 production authentication audit:
+    - Successful username and email logins (including mixed-case)
+    - Rejection of incorrect passwords and unknown usernames
+    - Proper rejection of inactive users
+    - Administrator and teacher redirects to dashboard
+    - Password hashing verification
+    - Login form field names and validation
+    """
+    def setUp(self):
+        assign_role_permissions()
+        self.client = Client()
+
+        self.admin_user = User.objects.create_superuser(
+            username='sys_admin',
+            email='SysAdmin@Attendance.local',
+            password='AdminSecret2026!',
+            first_name='Sys',
+            last_name='Admin',
+        )
+
+        self.teacher_user = User.objects.create_user(
+            username='faculty_user',
+            email='Faculty@Attendance.local',
+            password='TeacherSecret2026!',
+            role=User.Role.TEACHER,
+            first_name='Faculty',
+            last_name='Member',
+        )
+        TeacherProfile.objects.create(
+            user=self.teacher_user,
+            employee_id='EMP-FAC-01',
+            department='Science'
+        )
+
+        self.inactive_user = User.objects.create_user(
+            username='disabled_user',
+            email='disabled@attendance.local',
+            password='DisabledSecret2026!',
+            role=User.Role.TEACHER,
+            is_active=False
+        )
+
+    def test_login_form_field_names_and_attributes(self):
+        """Form must have username, password, and remember_me fields with correct widget names."""
+        from accounts.forms import UserLoginForm
+        form = UserLoginForm()
+        self.assertIn('username', form.fields)
+        self.assertIn('password', form.fields)
+        self.assertIn('remember_me', form.fields)
+        self.assertEqual(form.fields['username'].widget.attrs.get('id'), 'loginUsername')
+        self.assertEqual(form.fields['password'].widget.attrs.get('id'), 'loginPassword')
+
+    def test_successful_login_with_exact_username(self):
+        response = self.client.post(reverse('accounts:login'), {
+            'username': 'sys_admin',
+            'password': 'AdminSecret2026!',
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse('dashboard:index'))
+        self.assertTrue(self.client.session.get('_auth_user_id'))
+
+    def test_successful_login_with_exact_email(self):
+        response = self.client.post(reverse('accounts:login'), {
+            'username': 'SysAdmin@Attendance.local',
+            'password': 'AdminSecret2026!',
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse('dashboard:index'))
+
+    def test_successful_login_with_lowercase_email(self):
+        """Email matching must be case-insensitive."""
+        response = self.client.post(reverse('accounts:login'), {
+            'username': 'sysadmin@attendance.local',
+            'password': 'AdminSecret2026!',
+        })
+        self.assertEqual(response.status_code, 302)
+
+    def test_successful_login_with_mixed_case_username(self):
+        """Username matching must be case-insensitive via custom authentication backend."""
+        response = self.client.post(reverse('accounts:login'), {
+            'username': 'SYS_ADMIN',
+            'password': 'AdminSecret2026!',
+        })
+        self.assertEqual(response.status_code, 302)
+
+    def test_rejection_of_incorrect_password(self):
+        response = self.client.post(reverse('accounts:login'), {
+            'username': 'sys_admin',
+            'password': 'WrongPassword!',
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(self.client.session.get('_auth_user_id'))
+        self.assertContains(response, "Invalid credentials")
+
+    def test_rejection_of_unknown_username(self):
+        response = self.client.post(reverse('accounts:login'), {
+            'username': 'unknown_person_9999',
+            'password': 'SomePassword123!',
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(self.client.session.get('_auth_user_id'))
+        self.assertContains(response, "Invalid credentials")
+
+    def test_rejection_of_inactive_user(self):
+        """Inactive accounts must be rejected with inactive error message."""
+        response = self.client.post(reverse('accounts:login'), {
+            'username': 'disabled_user',
+            'password': 'DisabledSecret2026!',
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(self.client.session.get('_auth_user_id'))
+        self.assertContains(response, "This account is inactive")
+
+    def test_administrator_redirect_and_dashboard_render(self):
+        """Administrator login redirects to dashboard which displays administrator portal."""
+        response = self.client.post(reverse('accounts:login'), {
+            'username': 'sys_admin',
+            'password': 'AdminSecret2026!',
+        }, follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'dashboard/admin_dashboard.html')
+
+    def test_teacher_redirect_and_dashboard_render(self):
+        """Teacher login redirects to dashboard which displays teacher portal."""
+        response = self.client.post(reverse('accounts:login'), {
+            'username': 'faculty_user',
+            'password': 'TeacherSecret2026!',
+        }, follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'dashboard/teacher_dashboard.html')
+
+    def test_password_hashing_during_user_creation(self):
+        """Passwords must be cryptographically hashed and never stored in plain text."""
+        new_user = User.objects.create_user(
+            username='hashed_user',
+            password='PlainPassword123!'
+        )
+        self.assertNotEqual(new_user.password, 'PlainPassword123!')
+        self.assertTrue(new_user.password.startswith('pbkdf2_sha256$'))
+        self.assertTrue(new_user.check_password('PlainPassword123!'))
+        self.assertFalse(new_user.check_password('WrongPassword!'))
+
+
+
 

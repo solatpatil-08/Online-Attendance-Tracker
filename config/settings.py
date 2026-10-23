@@ -203,6 +203,13 @@ else:
 # Custom User Model
 AUTH_USER_MODEL = 'accounts.User'
 
+# Authentication Backends
+# Supports authentication via either username or email address (case-insensitive)
+AUTHENTICATION_BACKENDS = [
+    'accounts.authentication.EmailOrUsernameModelBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]
+
 
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators

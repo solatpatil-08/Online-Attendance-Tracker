@@ -14,12 +14,21 @@
             <p class="text-muted small">Sign in with your authorized institutional credentials</p>
         </div>
 
-        <!-- Generic Authentication Error Feedback -->
-        {% if form.errors or form.non_field_errors %}
+        <!-- Authentication Error Feedback -->
+        {% if form.non_field_errors %}
             <div class="alert alert-danger py-2 px-3 small d-flex align-items-center mb-3 shadow-xs" role="alert">
                 <i class="bi bi-shield-slash-fill me-2 fs-5 flex-shrink-0"></i>
                 <div>
-                    <strong>Sign In Failed:</strong> Invalid credentials. Please verify your username/email and password.
+                    {% for error in form.non_field_errors %}
+                        <div>{{ error }}</div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% elif form.errors %}
+            <div class="alert alert-danger py-2 px-3 small d-flex align-items-center mb-3 shadow-xs" role="alert">
+                <i class="bi bi-shield-slash-fill me-2 fs-5 flex-shrink-0"></i>
+                <div>
+                    <strong>Sign In Failed:</strong> Please check your username/email and password.
                 </div>
             </div>
         {% endif %}

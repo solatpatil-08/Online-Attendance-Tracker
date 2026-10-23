@@ -2,6 +2,7 @@ from django import forms
 from django.contrib.auth import authenticate
 from django.contrib.auth.forms import AuthenticationForm
 from django.core.exceptions import ValidationError
+from django.db.models import Q
 from .models import User, TeacherProfile
 
 
@@ -52,19 +53,23 @@ class UserLoginForm(AuthenticationForm):
         password = self.cleaned_data.get('password')
 
         if username_or_email and password:
-            # If input is an email, resolve to associated username
-            if '@' in username_or_email:
-                user_match = User.objects.filter(email__iexact=username_or_email.strip()).first()
-                if user_match:
-                    username_or_email = user_match.username
-
+            clean_identifier = username_or_email.strip()
             self.user_cache = authenticate(
                 self.request,
-                username=username_or_email,
+                username=clean_identifier,
                 password=password
             )
 
             if self.user_cache is None:
+                # Check whether account exists but is deactivated
+                inactive_user = User.objects.filter(
+                    Q(username__iexact=clean_identifier) | Q(email__iexact=clean_identifier)
+                ).first()
+                if inactive_user and not inactive_user.is_active:
+                    raise ValidationError(
+                        self.error_messages['inactive'],
+                        code='inactive',
+                    )
                 raise self.get_invalid_login_error()
             else:
                 self.confirm_login_allowed(self.user_cache)
