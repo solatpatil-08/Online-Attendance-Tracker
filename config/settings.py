@@ -148,14 +148,17 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # discrete DB_* variables, and falls back to SQLite for local development or ephemeral serverless preview.
 import dj_database_url
 
-DATABASE_URL = os.getenv('DATABASE_URL') or os.getenv('POSTGRES_URL')
-if DATABASE_URL:
+raw_db_url = (os.getenv('DATABASE_URL') or os.getenv('POSTGRES_URL') or '').strip()
+# Guard against accidental placeholder copies (e.g. postgresql://<user>:<password>@<host>/<dbname>)
+is_placeholder_url = any(p in raw_db_url for p in ['<host>', '<user>', '<password>', '<dbname>'])
+
+if raw_db_url and not is_placeholder_url:
     DATABASES = {
         'default': dj_database_url.config(
-            default=DATABASE_URL,
+            default=raw_db_url,
             conn_max_age=int(os.getenv('CONN_MAX_AGE', 0 if os.getenv('VERCEL') else 600)),
             conn_health_checks=True,
-            ssl_require=True if (os.getenv('VERCEL') or 'neon.tech' in DATABASE_URL or 'supabase' in DATABASE_URL) else False,
+            ssl_require=True if (os.getenv('VERCEL') or 'neon.tech' in raw_db_url or 'supabase' in raw_db_url) else False,
         )
     }
 elif os.getenv('DB_ENGINE'):

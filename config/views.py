@@ -21,7 +21,7 @@ def custom_server_error(request, template_name='500.html'):
     if token:
         token_clean = token.strip()
         sk = getattr(settings, 'SECRET_KEY', '') or ''
-        if (sk and hmac.compare_digest(token_clean, sk.strip())) or hmac.compare_digest(token_clean, 'prod-diagnostic-override-2026'):
+        if sk and hmac.compare_digest(token_clean, sk.strip()):
             is_valid_token = True
 
     if is_valid_token:
