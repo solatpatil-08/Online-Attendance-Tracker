@@ -1,6 +1,5 @@
 from django.urls import path
 from . import views
-from .diagnostic import ProductionAuthDiagnosticView
 
 app_name = 'accounts'
 
@@ -9,7 +8,6 @@ urlpatterns = [
     path('login/', views.UserLoginView.as_view(), name='login'),
     path('logout/', views.UserLogoutView.as_view(), name='logout'),
     path('profile/', views.profile_view, name='profile'),
-    path('diagnostic/status/', ProductionAuthDiagnosticView.as_view(), name='diagnostic_status'),
 
     # Administrator teacher management routes
     path('teachers/', views.TeacherListView.as_view(), name='teacher_list'),
