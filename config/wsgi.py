@@ -34,12 +34,12 @@ if os.getenv('VERCEL'):
             call_command('migrate', interactive=False, verbosity=0)
 
         # Secure administrator provisioning via environment variables
-        admin_username = os.getenv('DJANGO_SUPERUSER_USERNAME') or os.getenv('ADMIN_USERNAME')
         admin_password = os.getenv('DJANGO_SUPERUSER_PASSWORD') or os.getenv('ADMIN_PASSWORD')
+        admin_username = os.getenv('DJANGO_SUPERUSER_USERNAME') or os.getenv('ADMIN_USERNAME') or ('admin' if admin_password else None)
         admin_email = os.getenv('DJANGO_SUPERUSER_EMAIL') or os.getenv('ADMIN_EMAIL', 'admin@attendance.local')
 
+        User = get_user_model()
         if admin_username and admin_password:
-            User = get_user_model()
             admin_user, created = User.objects.get_or_create(
                 username=admin_username.strip(),
                 defaults={
@@ -59,6 +59,12 @@ if os.getenv('VERCEL'):
                 admin_user.is_active = True
                 admin_user.save()
                 logger.info(f"Provisioned superuser: {admin_username}")
+
+        # Optional: Seed complete Indian school demo dataset on initial deploy if requested
+        if os.getenv('SEED_DEMO_DATA', 'False').lower() in ('true', '1', 't'):
+            if not User.objects.filter(role=User.Role.ADMIN).exists():
+                logger.info("Initializing Indian school demo dataset...")
+                call_command('seed_demo_data', confirm_production=True, verbosity=0)
     except Exception as e:
         logger.error(f"Vercel startup init notice: {e}", exc_info=True)
     finally:
