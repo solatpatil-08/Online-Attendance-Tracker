@@ -60,11 +60,12 @@ if os.getenv('VERCEL'):
                 admin_user.save()
                 logger.info(f"Provisioned superuser: {admin_username}")
 
-        # Optional: Seed complete Indian school demo dataset on initial deploy if requested
-        if os.getenv('SEED_DEMO_DATA', 'False').lower() in ('true', '1', 't'):
-            if not User.objects.filter(role=User.Role.ADMIN).exists():
-                logger.info("Initializing Indian school demo dataset...")
-                call_command('seed_demo_data', confirm_production=True, verbosity=0)
+        # Auto-seed complete Indian school demo dataset on initial deploy:
+        # Runs if SEED_DEMO_DATA is enabled or automatically if the database is brand new (0 users)
+        should_seed = os.getenv('SEED_DEMO_DATA', 'True').lower() in ('true', '1', 't')
+        if should_seed and not User.objects.exists():
+            logger.info("Database is empty. Initializing Indian school demo dataset...")
+            call_command('seed_demo_data', confirm_production=True, days=7, verbosity=0)
     except Exception as e:
         logger.error(f"Vercel startup init notice: {e}", exc_info=True)
     finally:

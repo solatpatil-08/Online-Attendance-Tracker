@@ -169,6 +169,14 @@ class Command(BaseCommand):
         self.stdout.write("Seeding 3 administrative test accounts...")
         admin_specs = [
             {
+                'username': 'admin',
+                'first_name': 'System',
+                'last_name': 'Administrator',
+                'email': f'admin{self.DEMO_DOMAIN}',
+                'phone_number': '+91 98200 11000',
+                'is_superuser': True,
+            },
+            {
                 'username': 'admin_rajesh',
                 'first_name': 'Rajesh',
                 'last_name': 'Sharma',
