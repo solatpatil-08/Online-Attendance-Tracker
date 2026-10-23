@@ -52,6 +52,12 @@ if allowed_hosts_env:
 else:
     extra_hosts = []
 
+# If Vercel dynamically sets VERCEL_URL (e.g. preview deployment URL)
+vercel_url = os.getenv('VERCEL_URL')
+if vercel_url:
+    clean_vurl = vercel_url.strip()
+    extra_hosts.extend([clean_vurl, f".{clean_vurl}"])
+
 # Deduplicate while preserving order; never use wildcard '*'
 ALLOWED_HOSTS = list(dict.fromkeys(BASE_ALLOWED_HOSTS + extra_hosts))
 
@@ -66,6 +72,14 @@ if csrf_trusted_env:
     extra_csrf = [origin.strip() for origin in csrf_trusted_env.split(',') if origin.strip()]
 else:
     extra_csrf = []
+
+# If Vercel dynamically sets VERCEL_URL
+if vercel_url:
+    clean_vurl = vercel_url.strip()
+    if not clean_vurl.startswith(('http://', 'https://')):
+        extra_csrf.append(f"https://{clean_vurl}")
+    else:
+        extra_csrf.append(clean_vurl)
 
 CSRF_TRUSTED_ORIGINS = list(dict.fromkeys(BASE_CSRF_TRUSTED_ORIGINS + extra_csrf))
 
@@ -130,17 +144,18 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 
 # Database Configuration
-# Supports DATABASE_URL (PostgreSQL, MySQL, etc.) via dj-database-url, discrete DB_* variables,
-# and falls back to SQLite for convenient local development.
+# Supports DATABASE_URL / POSTGRES_URL (PostgreSQL, Neon, Supabase, Vercel Postgres) via dj-database-url,
+# discrete DB_* variables, and falls back to SQLite for local development or ephemeral serverless preview.
 import dj_database_url
 
-DATABASE_URL = os.getenv('DATABASE_URL')
+DATABASE_URL = os.getenv('DATABASE_URL') or os.getenv('POSTGRES_URL')
 if DATABASE_URL:
     DATABASES = {
         'default': dj_database_url.config(
             default=DATABASE_URL,
-            conn_max_age=int(os.getenv('CONN_MAX_AGE', 600)),
+            conn_max_age=int(os.getenv('CONN_MAX_AGE', 0 if os.getenv('VERCEL') else 600)),
             conn_health_checks=True,
+            ssl_require=True if (os.getenv('VERCEL') or 'neon.tech' in DATABASE_URL or 'supabase' in DATABASE_URL) else False,
         )
     }
 elif os.getenv('DB_ENGINE'):
@@ -152,14 +167,13 @@ elif os.getenv('DB_ENGINE'):
             'PASSWORD': os.getenv('DB_PASSWORD', ''),
             'HOST': os.getenv('DB_HOST', ''),
             'PORT': os.getenv('DB_PORT', ''),
-            'CONN_MAX_AGE': int(os.getenv('CONN_MAX_AGE', 600)),
+            'CONN_MAX_AGE': int(os.getenv('CONN_MAX_AGE', 0 if os.getenv('VERCEL') else 600)),
             'CONN_HEALTH_CHECKS': True,
         }
     }
 elif os.getenv('VERCEL'):
-    # On Vercel serverless, the repository root filesystem is strictly read-only.
-    # If no external PostgreSQL DATABASE_URL is provided, configure SQLite inside /tmp/
-    # (the only writable directory in serverless execution) to allow sessions and logins.
+    # On Vercel serverless, /var/task is strictly read-only.
+    # /tmp is the only writable directory in serverless execution.
     import shutil
     tmp_db = Path('/tmp') / 'db.sqlite3'
     bundled_db = BASE_DIR / 'db.sqlite3'
@@ -171,7 +185,10 @@ elif os.getenv('VERCEL'):
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': tmp_db if tmp_db.exists() else bundled_db,
+            'NAME': tmp_db,
+            'OPTIONS': {
+                'timeout': 20,
+            },
         }
     }
 else:
@@ -292,8 +309,9 @@ SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 SESSION_COOKIE_SAMESITE = 'Lax'
 CSRF_COOKIE_SAMESITE = 'Lax'
 
-# Reverse Proxy SSL Header (for Nginx, Caddy, AWS ALB, Cloudflare, etc.)
-if os.getenv('USE_X_FORWARDED_PROTO', 'False').lower() in ('true', '1', 't'):
+# Reverse Proxy SSL Header (for Vercel, Nginx, Caddy, AWS ALB, Cloudflare, etc.)
+# Vercel automatically terminates SSL and passes HTTP_X_FORWARDED_PROTO = 'https'
+if os.getenv('VERCEL') or os.getenv('USE_X_FORWARDED_PROTO', 'False').lower() in ('true', '1', 't'):
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 if not DEBUG:
