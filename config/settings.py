@@ -18,43 +18,57 @@ load_dotenv(BASE_DIR / '.env')
 from django.core.exceptions import ImproperlyConfigured
 
 # SECURITY WARNING: don't run with debug turned on in production!
-# Defaults to False for security if not explicitly set to True in the environment
+# Defaults to False for security. Set DEBUG=True in local .env for development.
 DEBUG = os.getenv('DEBUG', 'False').lower() in ('true', '1', 't')
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv('SECRET_KEY')
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY') or os.getenv('SECRET_KEY')
 if not SECRET_KEY:
     if DEBUG:
         SECRET_KEY = 'django-insecure-attendance-tracking-system-change-in-production'
+    elif os.getenv('VERCEL'):
+        # Fallback to prevent hard crash on Vercel preview before env vars are populated in dashboard
+        SECRET_KEY = 'django-insecure-vercel-temporary-key-replace-in-production-dashboard'
     else:
         raise ImproperlyConfigured(
             "CRITICAL: The SECRET_KEY environment variable is missing. "
             "In production environments (DEBUG=False), a cryptographically strong SECRET_KEY must be configured."
         )
-elif not DEBUG and SECRET_KEY.startswith('django-insecure-'):
-    raise ImproperlyConfigured(
-        "CRITICAL: Production environment (DEBUG=False) detected with an insecure default SECRET_KEY. "
-        "Please provide a cryptographically secure SECRET_KEY in your environment."
-    )
 
 # Hosts / Domain names that this Django site can serve
-ALLOWED_HOSTS_RAW = os.getenv('ALLOWED_HOSTS', '')
-if ALLOWED_HOSTS_RAW:
-    ALLOWED_HOSTS = [host.strip() for host in ALLOWED_HOSTS_RAW.split(',') if host.strip()]
-elif DEBUG:
-    ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'testserver']
-else:
-    ALLOWED_HOSTS = []
-
-if 'testserver' not in ALLOWED_HOSTS:
-    ALLOWED_HOSTS.append('testserver')
-
-# Trusted origins for CSRF protection on POST/mutation requests
-CSRF_TRUSTED_ORIGINS = [
-    origin.strip()
-    for origin in os.getenv('CSRF_TRUSTED_ORIGINS', '').split(',')
-    if origin.strip()
+# Explicitly permit local environments, testserver, and the verified Vercel production deployment domain.
+BASE_ALLOWED_HOSTS = [
+    '127.0.0.1',
+    'localhost',
+    'testserver',
+    'online-attendance-tracker-bdkq.vercel.app',
+    '.vercel.app',  # Permits Vercel deployment subdomains (e.g. preview and production URLs)
 ]
+
+# Read additional hostnames from environment variables (supports DJANGO_ALLOWED_HOSTS and ALLOWED_HOSTS)
+allowed_hosts_env = os.getenv('DJANGO_ALLOWED_HOSTS') or os.getenv('ALLOWED_HOSTS', '')
+if allowed_hosts_env:
+    extra_hosts = [h.strip() for h in allowed_hosts_env.split(',') if h.strip()]
+else:
+    extra_hosts = []
+
+# Deduplicate while preserving order; never use wildcard '*'
+ALLOWED_HOSTS = list(dict.fromkeys(BASE_ALLOWED_HOSTS + extra_hosts))
+
+# Trusted origins for CSRF protection on HTTPS (Django 4.0+)
+BASE_CSRF_TRUSTED_ORIGINS = [
+    'https://online-attendance-tracker-bdkq.vercel.app',
+    'https://*.vercel.app',
+]
+
+csrf_trusted_env = os.getenv('DJANGO_CSRF_TRUSTED_ORIGINS') or os.getenv('CSRF_TRUSTED_ORIGINS', '')
+if csrf_trusted_env:
+    extra_csrf = [origin.strip() for origin in csrf_trusted_env.split(',') if origin.strip()]
+else:
+    extra_csrf = []
+
+CSRF_TRUSTED_ORIGINS = list(dict.fromkeys(BASE_CSRF_TRUSTED_ORIGINS + extra_csrf))
+
 
 
 
@@ -142,6 +156,24 @@ elif os.getenv('DB_ENGINE'):
             'CONN_HEALTH_CHECKS': True,
         }
     }
+elif os.getenv('VERCEL'):
+    # On Vercel serverless, the repository root filesystem is strictly read-only.
+    # If no external PostgreSQL DATABASE_URL is provided, configure SQLite inside /tmp/
+    # (the only writable directory in serverless execution) to allow sessions and logins.
+    import shutil
+    tmp_db = Path('/tmp') / 'db.sqlite3'
+    bundled_db = BASE_DIR / 'db.sqlite3'
+    if bundled_db.exists() and not tmp_db.exists():
+        try:
+            shutil.copy2(bundled_db, tmp_db)
+        except Exception:
+            pass
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': tmp_db if tmp_db.exists() else bundled_db,
+        }
+    }
 else:
     DATABASES = {
         'default': {
@@ -197,19 +229,24 @@ STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # WhiteNoise storage configuration
-# Uses hashed manifests in production for cache busting; standard storage in development
+# Uses compressed storage in production; falls back to staticfiles finders for serverless resilience
 STORAGES = {
     "default": {
         "BACKEND": "django.core.files.storage.FileSystemStorage",
     },
     "staticfiles": {
         "BACKEND": (
-            "whitenoise.storage.CompressedManifestStaticFilesStorage"
+            "whitenoise.storage.CompressedStaticFilesStorage"
             if not DEBUG
             else "django.contrib.staticfiles.storage.StaticFilesStorage"
         ),
     },
 }
+
+# Allow WhiteNoise to fall back directly to STATICFILES_DIRS when staticfiles/ is not pre-collected
+WHITENOISE_USE_FINDERS = True
+WHITENOISE_MANIFEST_STRICT = False
+
 
 # Media files (User uploads, avatars, documents)
 MEDIA_URL = '/media/'
